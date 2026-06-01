@@ -5,5 +5,5 @@ namespace Application.Common.Interfaces;
 
 public interface IEmployeeService
 {
-    Task<PaginationResponse<EmployeeResponse>> GetEmployeesAsync(EmployeeRequest request);
+    Task<Response<PaginationResponse<EmployeeResponse>>> GetEmployeesAsync(EmployeeRequest request);
 }

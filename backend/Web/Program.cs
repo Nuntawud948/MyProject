@@ -8,10 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. ตั้งค่า CORS (อนุญาตให้ React พอร์ต 5173 ยิง API เข้ามาได้)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy => policy.WithOrigins("http://localhost:5173")
-                        .AllowAnyHeader()
-                        .AllowAnyMethod());
+    options.AddPolicy(
+        "AllowFrontend",
+        policy => policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()
+    );
 });
 
 // 2. เชื่อมต่อ PostgreSQL และบังคับให้ตาราง History อยู่ที่ public schema
@@ -19,10 +19,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         x => x.MigrationsHistoryTable("__EFMigrationsHistory", "public") // 👈 ระบุชื่อตาราง และชื่อ Schema ชัดเจน
-    ));
-    
+    )
+);
+
 // 3. ลงทะเบียน Service (บอกระบบว่าถ้ามีคนขอ IEmployeeService ให้เรียกใช้ EmployeeService)
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IFilterService, Infrastructure.Services.Common.FilterService>();
+builder.Services.AddScoped<ISortService, Infrastructure.Services.Common.SortService>();
+builder.Services.AddScoped<IPaginationService, Infrastructure.Services.Common.PaginationService>();
 
 // 4. ตั้งค่า Controller และ Swagger (หน้าเว็บสำหรับเทสต์ API)
 builder.Services.AddControllers();
