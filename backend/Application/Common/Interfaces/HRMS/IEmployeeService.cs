@@ -1,5 +1,5 @@
 using Application.Common.Models;
-using Application.Dtos.Hrms;
+using Application.Dtos.HRMS;
 
 namespace Application.Common.Interfaces;
 

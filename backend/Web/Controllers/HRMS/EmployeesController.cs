@@ -1,5 +1,5 @@
 using Application.Common.Interfaces;
-using Application.Dtos.Hrms;
+using Application.Dtos.HRMS;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Web.Controllers;

@@ -21,12 +21,6 @@ public class PaginationService : IPaginationService
         // ดึงรายการข้อมูลดิบ (Entities) ออกมาจาก PostgreSQL
         var items = await query.Skip(skip).Take(pageSize).ToListAsync();
 
-        return new PaginationResponse<TEntity>
-        {
-            Data = items,
-            TotalCount = totalCount,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-        };
+        return new PaginationResponse<TEntity>(items, pageNumber, pageSize, totalCount);
     }
 }
