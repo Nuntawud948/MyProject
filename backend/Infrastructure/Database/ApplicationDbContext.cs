@@ -20,6 +20,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         // กำหนด Schema และชื่อตารางให้ดูเป็นระเบียบแบบ Enterprise
         modelBuilder.Entity<Employee>().ToTable("Employees", "hrms");
+        modelBuilder.Entity<Department>().ToTable("Departments", "hrms");
+        modelBuilder.Entity<Role>().ToTable("Roles", "hrms");
+        modelBuilder.Entity<BusinessUnit>().ToTable("BusinessUnits", "hrms");
 
         modelBuilder.Entity<UserAccount>().ToTable("UserAccounts", "ums");
     }

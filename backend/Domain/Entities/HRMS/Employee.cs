@@ -1,18 +1,24 @@
 namespace Domain.Entities.HRMS;
+using Domain.Common; // อย่าลืม using BaseEntity
 
-public class Employee
+// 1. ใส่ : BaseEntity เพื่อสืบทอด
+public class Employee : BaseEntity
 {
-    public int Id { get; set; }
-
-    // 🔴 ฟิลด์บังคับ (ห้าม Null - Database จะเป็น NOT NULL)
     public string Code { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty; 
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public DateTime StartDate { get; set; }
-    public bool IsActive { get; set; } = true;
 
-    // 🟢 ฟิลด์ทางเลือก (ใส่ ? เพื่อบอกว่าเป็น Null ได้ - Database จะเป็น NULLABLE)
-    public string? Department { get; set; } // เผื่อพนักงานใหม่ยังไม่ได้จัดสรรแผนก
-    public string? PhoneNumber { get; set; } // เผื่อยังไม่กรอกเบอร์โทร
-    public DateTime? ResignationDate { get; set; } // วันที่ลาออก (คนทำงานอยู่ก็ต้องเป็น Null)
+    public int? DepartmentId { get; set; } 
+    public Department? Department { get; set; }
+
+    public int? RoleId { get; set; } 
+    public Role? Role { get; set; }
+
+    public int? BusinessUnitId { get; set; } 
+    public BusinessUnit? BusinessUnit { get; set; }
+
+    public string? EmploymentType { get; set; } 
+    public decimal? Salary { get; set; } 
 }
