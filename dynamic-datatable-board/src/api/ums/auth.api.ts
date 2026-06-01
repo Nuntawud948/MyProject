@@ -1,5 +1,5 @@
 import axiosClient from '../axiosClient';
-import { ApiResponse, TokenResponse, LoginRequest } from '../../types/ums/auth';
+import { ApiResponse, TokenResponse, LoginRequest } from '../../dto/ums/auth';
 
 export const authApi = {
     /**

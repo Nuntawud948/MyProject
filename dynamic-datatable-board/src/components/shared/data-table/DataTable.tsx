@@ -27,13 +27,15 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Input } from '@/components/ui/input';
 import { DataFilterBar, FilterOption } from './DataFilterBar';
 
+import { PaginatedDto } from '@/dto/common/paginated-dto';
+
 export type FilterableColumnDef<TData, TValue = any> = ColumnDef<TData, TValue> & {
   filterable?: boolean;
 };
 
 export interface DataTableProps<TData, TValue> {
   columns: FilterableColumnDef<TData, TValue>[];
-  data: TData[];
+  paginatedData?: PaginatedDto<TData>;
 
   // Dynamic filter configuration
   filterOptions?: FilterOption[];
@@ -42,10 +44,6 @@ export interface DataTableProps<TData, TValue> {
   onClearFilters?: () => void;
   filterslot?: number;
 
-  // Server-side Pagination & Coordination State
-  totalCount?: number;
-  pageSize?: number;
-  pageIndex?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
 
@@ -57,15 +55,12 @@ export interface DataTableProps<TData, TValue> {
 
 export function DataTable<TData, TValue>({
   columns,
-  data,
+  paginatedData = { items: [], totalCount: 0, pageSize: 10, pageIndex: 0 },
   filterOptions = [],
   filters = {},
   onFilterChange,
   onClearFilters,
   filterslot = 3,
-  totalCount = 0,
-  pageSize = 10,
-  pageIndex = 0,
   onPageChange,
   onPageSizeChange,
   isLoading = false,
@@ -75,9 +70,11 @@ export function DataTable<TData, TValue>({
   // Local state for interactive header column filters
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
 
+  const { items = [], totalCount = 0, pageSize = 10, pageIndex = 0 } = paginatedData;
+
   // Memoized local filtering for columns flagged as filterable: true
   const filteredRows = useMemo(() => {
-    let result = data;
+    let result = items;
     const activeKeys = Object.keys(columnFilters).filter((k) => columnFilters[k].trim() !== '');
     if (activeKeys.length === 0) return result;
 
@@ -94,7 +91,7 @@ export function DataTable<TData, TValue>({
         return String(val).toLowerCase().includes(query);
       });
     });
-  }, [data, columnFilters]);
+  }, [items, columnFilters]);
 
   // Setup Tanstack Table instance matching the filtered or default collection
   const table = useReactTable({
@@ -104,7 +101,7 @@ export function DataTable<TData, TValue>({
     manualPagination: true, // we handle pagination state changes in parent to mirror .NET endpoint integration
   });
 
-  const totalRecords = totalCount || data.length;
+  const totalRecords = totalCount || items.length;
   const pageCount = Math.max(1, Math.ceil(totalRecords / pageSize));
   
   const canGoPrevious = pageIndex > 0;
@@ -252,7 +249,7 @@ export function DataTable<TData, TValue>({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-slate-200 px-4 py-3 rounded-lg shadow-2xs">
         {/* Total Records Summary */}
         <div className="text-xs text-slate-500 font-semibold text-center sm:text-left select-none">
-          Showing <span className="text-slate-800 font-bold">{data.length}</span> of{' '}
+          Showing <span className="text-slate-800 font-bold">{items.length}</span> of{' '}
           <span className="text-slate-800 font-bold">{totalRecords}</span> entries
         </div>
 

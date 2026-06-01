@@ -10,7 +10,7 @@ export interface HRMSQueryParams {
     pageIndex: number;
 }
 
-export const hrmsApi = {
+export const employee = {
     getEmployees: async (params: HRMSQueryParams): Promise<any> => {
         // 🧠 ปรับโครงสร้างข้อมูลส่งออกให้ตรงสเปค C# .NET Controller
         const backendPayload = {

@@ -16,7 +16,9 @@ import { FilterOption } from '@/components/shared/data-table/DataFilterBar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { hrmsApi, HRMSQueryParams } from '@/api/hrms/hrms.api';
+import { employee, HRMSQueryParams } from '@/api/hrms/employee';
+
+import { PaginatedDto } from '@/dto/common/paginated-dto';
 
 // 🌟 ปรับปรุงอินเตอร์เฟสให้ตรงตามโครงสร้างตารางและ DTO ตัวจริงหลังบ้าน
 export interface Employee {
@@ -74,9 +76,13 @@ export function EmployeeDashboardPage() {
     pageIndex: 0
   });
 
-  // Presentation State indicators
-  const [filteredData, setFilteredData] = useState<Employee[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  // Presentation State indicators using standardized PaginatedDto
+  const [paginatedData, setPaginatedData] = useState<PaginatedDto<Employee>>({
+    items: [],
+    totalCount: 0,
+    pageSize: 10,
+    pageIndex: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [showErrorState, setShowErrorState] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -226,7 +232,7 @@ export function EmployeeDashboardPage() {
         pageSize: queryParams.pageSize
       };
 
-      const response = await hrmsApi.getEmployees(payload);
+      const response = await employee.getEmployees(payload);
 
       // ==========================================================
       // 🧠 🛠️ [FIX LAYER]: แก้ไขการเจาะเข้าเลเยอร์ซองข้อมูล Axios + Response Wrapper
@@ -250,8 +256,12 @@ export function EmployeeDashboardPage() {
         resignationDate: item.resignationDate ? new Date(item.resignationDate) : null
       }));
 
-      setFilteredData(mappedEmployees);
-      setTotalCount(serverTotalCount);
+      setPaginatedData({
+        items: mappedEmployees,
+        totalCount: serverTotalCount,
+        pageSize: queryParams.pageSize,
+        pageIndex: queryParams.pageIndex
+      });
     } catch (error: any) {
       console.error("Database connection failure:", error);
       setErrorMessage(error.message || 'An unexpected error occurred while communicating with the C# .NET Core cluster.');
@@ -286,13 +296,13 @@ export function EmployeeDashboardPage() {
   };
 
   // คำนวณ Metric Card แบบเซฟโซน
-  const visibleCount = filteredData.length;
-  const activeCount = filteredData.filter((e) => e.isActive === true).length;
+  const visibleCount = paginatedData.items.length;
+  const activeCount = paginatedData.items.filter((e) => e.isActive === true).length;
   const activePercentage = visibleCount > 0 ? Math.round((activeCount / visibleCount) * 100) : 0;
 
   // คำนวณสถิติเด็กใหม่โดยเทียบเวลาแบบ Dynamic (ทำงานน้อยกว่า 365 วันนับจากวันเริ่มงาน)
   const currentYearTime = new Date().getTime();
-  const newHiresCount = filteredData.filter((e) => {
+  const newHiresCount = paginatedData.items.filter((e) => {
     const diffTime = Math.abs(currentYearTime - e.startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays <= 365;
@@ -345,7 +355,7 @@ export function EmployeeDashboardPage() {
           <div>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Database Total</p>
             <h4 className="text-lg md:text-xl font-black text-slate-800 leading-none mt-1">
-              {totalCount} <span className="text-xs text-amber-600 font-bold">records</span>
+              {paginatedData.totalCount} <span className="text-xs text-amber-600 font-bold">records</span>
             </h4>
           </div>
         </Card>
@@ -380,15 +390,12 @@ export function EmployeeDashboardPage() {
       {/* Global generic DataTable Instance */}
       <DataTable
         columns={columns}
-        data={filteredData}
+        paginatedData={paginatedData}
         filterOptions={FILTER_CONFIGURATION}
         filters={queryParams}
         onFilterChange={handleFilterChange}
         onClearFilters={handleClearFilters}
         filterslot={4}
-        totalCount={totalCount}
-        pageSize={queryParams.pageSize}
-        pageIndex={queryParams.pageIndex}
         onPageChange={(index) => {
           setQueryParams((prev) => ({ ...prev, pageIndex: index }));
         }}
