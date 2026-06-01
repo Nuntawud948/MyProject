@@ -31,7 +31,7 @@ export default function App() {
               <p className="text-sm text-slate-500 mt-2 max-w-2xl leading-relaxed">
                 Welcome to your HRMS Workspace. This screen contains general organization widgets, active headcounts, system load telemetry, and database clusters diagnostics.
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                 <div className="p-5 border border-slate-200/80 rounded-lg bg-slate-5075 shadow-3xs">
                   <div className="flex items-center gap-2 text-slate-700 font-bold mb-3 text-sm">
@@ -71,7 +71,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-slate-900 text-white rounded-xl p-5 md:p-6 shadow-sm border border-slate-850">
               <h4 className="text-sm font-bold text-emerald-400">Navigation Hint</h4>
               <p className="text-xs text-slate-350 mt-1 max-w-xl leading-relaxed">
@@ -90,7 +90,7 @@ export default function App() {
             <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
               <h3 className="text-lg font-bold text-slate-850">Leave Requests</h3>
               <p className="text-xs text-slate-400 mt-1">Leave module schema configuration.</p>
-              
+
               <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-lg mt-6 bg-slate-50/30">
                 <FileSpreadsheet className="h-10 w-10 text-slate-300 mb-3" />
                 <h4 className="text-sm font-bold text-slate-700">Database Schema Link Needed</h4>
@@ -114,7 +114,7 @@ export default function App() {
             <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
               <h3 className="text-lg font-bold text-slate-850">Attendance & Time Ledger</h3>
               <p className="text-xs text-slate-400 mt-1">Real-time biometrics login records.</p>
-              
+
               <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-lg mt-6 bg-slate-50/30">
                 <Clock className="h-10 w-10 text-slate-300 mb-3" />
                 <h4 className="text-sm font-bold text-slate-700">Timesheet Grid Pending</h4>
@@ -138,7 +138,7 @@ export default function App() {
             <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
               <h3 className="text-lg font-bold text-slate-850">User Accounts System</h3>
               <p className="text-xs text-slate-400 mt-1">Identity Access and security settings.</p>
-              
+
               <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-lg mt-6 bg-slate-50/30">
                 <Shield className="h-10 w-10 text-slate-300 mb-3" />
                 <h4 className="text-sm font-bold text-slate-700">Single Sign-On Settings Locked</h4>
