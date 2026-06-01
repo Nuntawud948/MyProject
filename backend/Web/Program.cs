@@ -1,5 +1,7 @@
 using Application.Common.Interfaces;
 using Infrastructure.Database;
+using Infrastructure.Services.Auth;
+using Infrastructure.Services.Common;
 using Infrastructure.Services.Hrms;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,9 +26,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // 3. ลงทะเบียน Service (บอกระบบว่าถ้ามีคนขอ IEmployeeService ให้เรียกใช้ EmployeeService)
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
-builder.Services.AddScoped<IFilterService, Infrastructure.Services.Common.FilterService>();
-builder.Services.AddScoped<ISortService, Infrastructure.Services.Common.SortService>();
-builder.Services.AddScoped<IPaginationService, Infrastructure.Services.Common.PaginationService>();
+builder.Services.AddScoped<IFilterService, FilterService>();
+builder.Services.AddScoped<ISortService, SortService>();
+builder.Services.AddScoped<IPaginationService, PaginationService>();
+
+// ลงทะเบียนระบบสิทธิ์และยืนยันตัวตน UMS
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 // 4. ตั้งค่า Controller และ Swagger (หน้าเว็บสำหรับเทสต์ API)
 builder.Services.AddControllers();
