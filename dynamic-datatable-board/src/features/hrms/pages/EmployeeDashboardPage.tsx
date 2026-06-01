@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { employee, HRMSQueryParams } from '@/api/hrms/employee';
+import { CustomCard } from '@/components/custom/CustomCard';
 
 import { PaginatedDto } from '@/dto/common/paginated-dto';
 
@@ -36,9 +37,9 @@ export interface Employee {
 const FILTER_CONFIGURATION: FilterOption[] = [
   {
     key: 'code',            // 👈 เปลี่ยนจาก searchQuery เป็น code ยิงตรงเข้าพารามิเตอร์หลังบ้าน
-    label: 'Employee Code',
+    label: 'Code',
     type: 'string',
-    placeholder: 'Search employee code...'
+    placeholder: 'Search code...'
   },
   {
     key: 'firstName',       // 👈 เพิ่มช่องกรองแยก FirstName ตามที่หลังบ้านแกะรับสายไว้
@@ -324,53 +325,45 @@ export function EmployeeDashboardPage() {
 
       {/* KPI Metric Bento Boxes */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 flex items-center gap-4">
-          <div className="h-10 w-10 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center text-slate-700 shrink-0 shadow-3xs">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total in Page</p>
-            <h4 className="text-lg md:text-xl font-black text-slate-800 leading-none mt-1">
-              {visibleCount} <span className="text-xs text-slate-400 font-normal">rows</span>
-            </h4>
-          </div>
-        </Card>
+        <CustomCard
+          icon={<Users className="h-5 w-5" />}
+          title="Total in Page"
+          value={<>{visibleCount} <span className="text-xs text-slate-400 font-normal">rows</span></>}
+          iconBgClass="bg-slate-50 border-slate-100"
+          iconTextClass="text-slate-700"
+          gradientFrom="from-white"
+          gradientTo="to-slate-50/50"
+        />
 
-        <Card className="p-4 flex items-center gap-4">
-          <div className="h-10 w-10 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 shrink-0 shadow-3xs">
-            <UserCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Page Active Ratio</p>
-            <h4 className="text-lg md:text-xl font-black text-slate-800 leading-none mt-1">
-              {activeCount} <span className="text-xs text-emerald-600 font-bold">({activePercentage}%)</span>
-            </h4>
-          </div>
-        </Card>
+        <CustomCard
+          icon={<UserCheck className="h-5 w-5" />}
+          title="Page Active Ratio"
+          value={<>{activeCount} <span className="text-xs text-emerald-600 font-bold">({activePercentage}%)</span></>}
+          iconBgClass="bg-emerald-50 border-emerald-100"
+          iconTextClass="text-emerald-600"
+          gradientFrom="from-white"
+          gradientTo="to-emerald-50/20"
+        />
 
-        <Card className="p-4 flex items-center gap-4">
-          <div className="h-10 w-10 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center text-amber-600 shrink-0 shadow-3xs">
-            <CalendarCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Database Total</p>
-            <h4 className="text-lg md:text-xl font-black text-slate-800 leading-none mt-1">
-              {paginatedData.totalCount} <span className="text-xs text-amber-600 font-bold">records</span>
-            </h4>
-          </div>
-        </Card>
+        <CustomCard
+          icon={<CalendarCheck className="h-5 w-5" />}
+          title="Database Total"
+          value={<>{paginatedData.totalCount} <span className="text-xs text-amber-600 font-bold">records</span></>}
+          iconBgClass="bg-amber-50 border-amber-100"
+          iconTextClass="text-amber-600"
+          gradientFrom="from-white"
+          gradientTo="to-amber-50/20"
+        />
 
-        <Card className="p-4 flex items-center gap-4">
-          <div className="h-10 w-10 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 shrink-0 shadow-3xs">
-            <Briefcase className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Junior Staff (Page)</p>
-            <h4 className="text-lg md:text-xl font-black text-slate-800 leading-none mt-1">
-              {newHiresCount} <span className="text-xs text-blue-600 font-normal">staff</span>
-            </h4>
-          </div>
-        </Card>
+        <CustomCard
+          icon={<Briefcase className="h-5 w-5" />}
+          title="Junior Staff (Page)"
+          value={<>{newHiresCount} <span className="text-xs text-blue-600 font-normal">staff</span></>}
+          iconBgClass="bg-blue-50 border-blue-100"
+          iconTextClass="text-blue-600"
+          gradientFrom="from-white"
+          gradientTo="to-blue-50/20"
+        />
       </div>
 
       {/* Integrated Unified SQL API State Display Badge */}
