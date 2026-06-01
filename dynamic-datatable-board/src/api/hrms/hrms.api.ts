@@ -1,10 +1,11 @@
 import axiosClient from '../axiosClient';
 
 export interface HRMSQueryParams {
-    searchQuery: string;
-    department: string;
-    minServiceYears: number | '';
-    startDateThreshold: Date | null;
+    code?: string;
+    firstName?: string;
+    lastName?: string;
+    department?: string;
+    status?: string;
     pageSize: number;
     pageIndex: number;
 }
@@ -15,11 +16,9 @@ export const hrmsApi = {
         const backendPayload = {
             pageNumber: params.pageIndex + 1, // แปลง 0-based เป็น 1-based ของ C#
             pageSize: params.pageSize,
-            searchText: params.searchQuery || undefined, // แมปเข้า public string? SearchText
             department: params.department || undefined,  // แมปเข้า public string? Department
-            minServiceYears: params.minServiceYears !== '' ? Number(params.minServiceYears) : undefined // แมปเข้า int? MinServiceYears
         };
 
-        return await axiosClient.get('/Employees', { params: backendPayload });
+        return await axiosClient.get('api/Employees', { params: backendPayload });
     },
 };

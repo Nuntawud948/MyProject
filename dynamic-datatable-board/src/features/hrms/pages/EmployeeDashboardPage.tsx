@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   CalendarCheck,
   Briefcase,
-  Plus,
   SlidersHorizontal,
   UserCheck
 } from 'lucide-react';
@@ -19,24 +18,37 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { hrmsApi, HRMSQueryParams } from '@/api/hrms/hrms.api';
 
-// Employee Interface matching the UI usage
+// 🌟 ปรับปรุงอินเตอร์เฟสให้ตรงตามโครงสร้างตารางและ DTO ตัวจริงหลังบ้าน
 export interface Employee {
   id: string;
   code: string;
   fullName: string;
   department: string;
   startDate: Date;
-  status: 'Active' | 'On Leave' | 'Inactive' | 'Terminated';
-  yearsOfService: number;
+  isActive: boolean;        // 👈 เปลี่ยนเป็น boolean ตรงตามเบสจริง
+  phoneNumber?: string;     // 👈 เพิ่มเข้ามารองรับตารางใหม่
+  resignationDate?: Date | null; // 👈 เพิ่มเข้ามารองรับตารางใหม่
 }
 
 // Define dynamic filter options matching components criteria
 const FILTER_CONFIGURATION: FilterOption[] = [
   {
-    key: 'searchQuery',
-    label: 'Employee Search',
+    key: 'code',            // 👈 เปลี่ยนจาก searchQuery เป็น code ยิงตรงเข้าพารามิเตอร์หลังบ้าน
+    label: 'Employee Code',
     type: 'string',
-    placeholder: 'Search name, code...'
+    placeholder: 'Search employee code...'
+  },
+  {
+    key: 'firstName',       // 👈 เพิ่มช่องกรองแยก FirstName ตามที่หลังบ้านแกะรับสายไว้
+    label: 'First Name',
+    type: 'string',
+    placeholder: 'Search first name...'
+  },
+  {
+    key: 'lastName',        // 👈 เพิ่มช่องกรองแยก LastName 
+    label: 'Last Name',
+    type: 'string',
+    placeholder: 'Search last name...'
   },
   {
     key: 'department',
@@ -47,28 +59,17 @@ const FILTER_CONFIGURATION: FilterOption[] = [
     textProperty: 'deptTitle',
     valueProperty: 'deptId',
     filterable: true
-  },
-  {
-    key: 'minServiceYears',
-    label: 'Years of Service',
-    type: 'number',
-    placeholder: 'Min experience years'
-  },
-  {
-    key: 'startDateThreshold',
-    label: 'Start Date (From)',
-    type: 'datetime',
-    placeholder: 'Pick reference start date'
   }
 ];
 
 export function EmployeeDashboardPage() {
-  // Active Query request packet matching a database payload request state
+  // 🌟 ปรับแต่ง Active Query request packet ให้ตรงล็อก EmployeeRequest.cs ของ C#
   const [queryParams, setQueryParams] = useState<HRMSQueryParams>({
-    searchQuery: '',
+    code: '',
+    firstName: '',
+    lastName: '',
     department: '',
-    minServiceYears: '',
-    startDateThreshold: null,
+    status: '', // ส่งเป็นข้อความสเตตัส หรือปรับตามกลไกคัดกรอง
     pageSize: 10,
     pageIndex: 0
   });
@@ -90,7 +91,6 @@ export function EmployeeDashboardPage() {
     {
       accessorKey: 'code',
       header: 'Employee Code',
-      filterable: false,
       cell: ({ row }) => (
         <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/50">
           {row.original.code}
@@ -100,7 +100,6 @@ export function EmployeeDashboardPage() {
     {
       accessorKey: 'fullName',
       header: 'Full Name',
-      filterable: true,
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-full bg-slate-900/5 text-slate-700 flex items-center justify-center font-bold text-xs select-none">
@@ -113,9 +112,15 @@ export function EmployeeDashboardPage() {
     {
       accessorKey: 'department',
       header: 'Department',
-      filterable: true,
       cell: ({ row }) => (
         <span className="text-slate-600 font-medium">{row.original.department}</span>
+      )
+    },
+    {
+      accessorKey: 'phoneNumber',
+      header: 'Phone Number',
+      cell: ({ row }) => (
+        <span className="text-slate-500 font-mono">{row.original.phoneNumber || '-'}</span>
       )
     },
     {
@@ -126,33 +131,23 @@ export function EmployeeDashboardPage() {
         return (
           <span className="text-slate-500 font-medium">
             {val instanceof Date && !isNaN(val.getTime())
-              ? val.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+              ? val.toLocaleDateString('th-TH', { month: 'short', day: 'numeric', year: 'numeric' })
               : 'N/A'}
           </span>
         );
       }
     },
     {
-      accessorKey: 'yearsOfService',
-      header: 'Service Years',
-      cell: ({ row }) => (
-        <span className="font-mono font-semibold text-slate-600">{row.original.yearsOfService} yrs</span>
-      )
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status Badge',
+      accessorKey: 'isActive',
+      header: 'Status',
       cell: ({ row }) => {
-        const status = row.original.status || 'Active';
-        const colorMap = {
-          Active: 'success' as const,
-          'On Leave': 'warning' as const,
-          Inactive: 'secondary' as const,
-          Terminated: 'destructive' as const,
-        };
-        // เผื่อความปลอดภัยจับคู่ถ้าระบบส่งค่าหลุดเคส
-        const variant = colorMap[status as keyof typeof colorMap] || 'secondary';
-        return <Badge variant={variant}>{status}</Badge>;
+        const isActive = row.original.isActive;
+        // แสดงผล Badge ตามสถานะ Boolean จริงจาก PostgreSQL 
+        return (
+          <Badge variant={isActive ? 'success' : 'destructive'}>
+            {isActive ? 'ทำงานอยู่' : 'ลาออกแล้ว'}
+          </Badge>
+        );
       }
     },
     {
@@ -217,28 +212,42 @@ export function EmployeeDashboardPage() {
     }
   ];
 
-  // 🚀 ฟังก์ชันหลักในการดักฟังความเคลื่อนไหว ยิงหาฐานข้อมูลจริงผ่าน API ชั้นประมวลผลหลังบ้าน
+  // 🚀 ดึงข้อมูลจาก C# .NET API พร้อมทำแบบแผน Mapping ลงล็อกตารางใหม่
+  // 🚀 ดึงข้อมูลจาก C# .NET API พร้อมทำแบบแผน Mapping ลงล็อกตารางใหม่
   const fetchActiveDatabaseRecords = async () => {
     try {
       setIsLoading(true);
       setShowErrorState(false);
 
-      // ยิงข้อมูลผ่านท่อ Axios ส่งไปให้เครื่อง C# .NET API
-      const response = await hrmsApi.getEmployees(queryParams);
+      // แปลงโครงสร้างจาก pageIndex (เริ่มจาก 0) เป็น pageNumber (เริ่มจาก 1) ยิงไปหาคอนโทรลเลอร์ C#
+      const payload = {
+        ...queryParams,
+        pageNumber: queryParams.pageIndex + 1,
+        pageSize: queryParams.pageSize
+      };
 
-      // การรับมือกับโครงสร้างข้อมูล PaginationResponse<T> ของฝั่งหลังบ้าน
-      const rawItems = response.data || []; // สเปคจาก public List<T> Data
-      const serverTotalCount = response.totalCount || 0; // สเปคจาก public int TotalCount
+      const response = await hrmsApi.getEmployees(payload);
 
-      // 🧠ทำการจับโครงสร้างข้อมูลแปลงร่าง (Map) จาก C# Entity ให้เข้ากับพิกัดตัวแปรเก่าของ UI หน้าบ้าน
+      // ==========================================================
+      // 🧠 🛠️ [FIX LAYER]: แก้ไขการเจาะเข้าเลเยอร์ซองข้อมูล Axios + Response Wrapper
+      // ==========================================================
+      // ส่องดูโครงสร้างจริง: response.data (ก้อนนอกสุด) -> .data (ห่อวัตถุหลักหลังบ้าน) -> .items
+      const actualServerPayload = response.data?.data ? response.data.data : response.data;
+
+      const rawItems = actualServerPayload?.items || [];
+      const serverTotalCount = actualServerPayload?.totalRecords || 0;
+
+      // Mapping ฟิลด์จาก PascalCase ให้เข้ากับไทป์ UI หน้าบ้าน
       const mappedEmployees: Employee[] = rawItems.map((item: any) => ({
-        id: item.id.toString(),                 // จาก int Id
-        code: item.employeeCode,                // จาก string EmployeeCode
-        fullName: item.fullName,                // จาก string FullName
-        department: item.department,            // จาก string Department
-        startDate: new Date(item.startDate),    // แปลง ISO String เป็น Date ของ JS
-        status: item.status === 'Active' ? 'Active' : 'Inactive', // จากสเปคข้อความเบื้องต้นหลังบ้าน
-        yearsOfService: item.serviceYears       // จาก int ServiceYears
+        id: (item.id || item.Id || '').toString(),
+        code: item.code || item.Code || '',
+        // 🌟 ซ่อมแซมกรณีดึง fullName ออกมาแล้วเป็น null ให้ทำการประกอบ FirstName + LastName สดหน้างาน
+        fullName: item.fullName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'No Name',
+        department: item.department || item.Department || '-',
+        startDate: item.startDate ? new Date(item.startDate) : new Date(),
+        isActive: item.isActive !== undefined ? item.isActive : true,
+        phoneNumber: item.phoneNumber || item.PhoneNumber || '-',
+        resignationDate: item.resignationDate ? new Date(item.resignationDate) : null
       }));
 
       setFilteredData(mappedEmployees);
@@ -252,7 +261,6 @@ export function EmployeeDashboardPage() {
     }
   };
 
-  // ดักฟังการขยับสลับหน้าหรือการกรอง พารามิเตอร์ขยับปุ๊บ ยิงสแกนเบสข้อมูลทันที
   useEffect(() => {
     fetchActiveDatabaseRecords();
   }, [queryParams]);
@@ -261,26 +269,34 @@ export function EmployeeDashboardPage() {
     setQueryParams((prev) => ({
       ...prev,
       [key]: value,
-      pageIndex: 0
+      pageIndex: 0 // บังคับคืนหน้าแรกเสมอเวลากดกรองค้นหาตัวแปรใหม่
     }));
   };
 
   const handleClearFilters = () => {
     setQueryParams((prev) => ({
       ...prev,
-      searchQuery: '',
+      code: '',
+      firstName: '',
+      lastName: '',
       department: '',
-      minServiceYears: '',
-      startDateThreshold: null,
+      status: '',
       pageIndex: 0
     }));
   };
 
-  // คำนวณ Metric Card แบบเซฟโซนจากรายการที่มีอยู่บนสไลด์ปัจจุบัน
+  // คำนวณ Metric Card แบบเซฟโซน
   const visibleCount = filteredData.length;
-  const activeCount = filteredData.filter((e) => e.status === 'Active').length;
+  const activeCount = filteredData.filter((e) => e.isActive === true).length;
   const activePercentage = visibleCount > 0 ? Math.round((activeCount / visibleCount) * 100) : 0;
-  const newHiresCount = filteredData.filter((e) => e.yearsOfService <= 1).length;
+
+  // คำนวณสถิติเด็กใหม่โดยเทียบเวลาแบบ Dynamic (ทำงานน้อยกว่า 365 วันนับจากวันเริ่มงาน)
+  const currentYearTime = new Date().getTime();
+  const newHiresCount = filteredData.filter((e) => {
+    const diffTime = Math.abs(currentYearTime - e.startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 365;
+  }).length;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -353,7 +369,7 @@ export function EmployeeDashboardPage() {
           <SlidersHorizontal className="h-4 w-4 text-emerald-400" />
           <span>
             <strong className="text-emerald-400 uppercase">C# API ROUTE PAYLOAD:</strong>{' '}
-            {`/api/employees?pageNumber=${queryParams.pageIndex + 1}&pageSize=${queryParams.pageSize}&searchText=${queryParams.searchQuery}&department=${queryParams.department}&minServiceYears=${queryParams.minServiceYears}`}
+            {`/api/employees?code=${queryParams.code}&firstName=${queryParams.firstName}&lastName=${queryParams.lastName}&department=${queryParams.department}`}
           </span>
         </div>
         <div className="text-[10px] text-slate-400 border border-slate-800 px-2 py-0.5 rounded bg-slate-950 font-bold">
@@ -424,25 +440,34 @@ export function EmployeeDashboardPage() {
                   <p className="text-slate-800 text-xs mt-0.5">{selectedEmployeeForDetail.department}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Years of Service</span>
-                  <p className="text-slate-800 text-xs mt-0.5">{selectedEmployeeForDetail.yearsOfService} yrs</p>
+                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Phone Number</span>
+                  <p className="text-slate-800 font-mono text-xs mt-0.5">{selectedEmployeeForDetail.phoneNumber || '-'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 uppercase font-extrabold text-[10px]">Start Date</span>
                   <p className="text-slate-800 text-xs mt-0.5">
                     {selectedEmployeeForDetail.startDate instanceof Date && !isNaN(selectedEmployeeForDetail.startDate.getTime())
-                      ? selectedEmployeeForDetail.startDate.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })
+                      ? selectedEmployeeForDetail.startDate.toLocaleDateString('th-TH', { month: 'long', day: 'numeric', year: 'numeric' })
                       : 'N/A'}
                   </p>
                 </div>
                 <div>
-                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Security Status</span>
+                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Status</span>
                   <div className="mt-1">
-                    <Badge variant={selectedEmployeeForDetail.status === 'Active' ? 'success' : 'secondary'}>
-                      {selectedEmployeeForDetail.status}
+                    <Badge variant={selectedEmployeeForDetail.isActive ? 'success' : 'destructive'}>
+                      {selectedEmployeeForDetail.isActive ? 'ทำงานอยู่' : 'ลาออกแล้ว'}
                     </Badge>
                   </div>
                 </div>
+                {/* 🌟 แสดงวันลาออกเพิ่มเติมหากมีข้อมูลพนักงานที่ลาออกแล้ว */}
+                {!selectedEmployeeForDetail.isActive && selectedEmployeeForDetail.resignationDate && (
+                  <div className="col-span-2 pt-2 border-t border-slate-50">
+                    <span className="text-red-400 uppercase font-extrabold text-[10px]">Resignation Date</span>
+                    <p className="text-red-600 text-xs mt-0.5">
+                      {selectedEmployeeForDetail.resignationDate.toLocaleDateString('th-TH', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -47,7 +47,7 @@ export default function LoginPage() {
             <div className="w-full max-w-md space-y-8 rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
                 <div>
                     <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-white">
-                        ENTERPRISE TMS & HRMS
+                      HRMS
                     </h2>
                     <p className="mt-2 text-center text-sm text-slate-400">
                         ลงชื่อเข้าใช้งานเพื่อเข้าสู่ระบบการกรองข้อมูลส่วนกลาง
