@@ -1,18 +1,22 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
-    // เดี๋ยวเราจะมาแก้พอร์ตตรงนี้ให้ตรงกับที่ .NET รันอีกทีครับ
-    baseURL: 'https://localhost:5272/api',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5272', // ให้ตรงกับพอร์ต C# ของคุณต้น
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// ด่านตรวจรับข้อมูล: ดึงเฉพาะ data ออกมาใช้ จะได้ไม่ต้อง .data ซ้อนกันหลายชั้น
-axiosClient.interceptors.response.use(
-    (response) => response.data,
+// 🔒 ดักจับคำขอก่อนส่งออกไป (Request Interceptor) เพื่อแนบใบเบิกทาง JWT Token
+axiosClient.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token'); // ดึง token ที่เก็บไว้ตอนล็อกอินสำเร็จ
+        if (token && config.headers) {
+            config.headers.Authorization = `Bearer ${token}`; // แนบลง Header ตามมาตรฐาน Enterprise
+        }
+        return config;
+    },
     (error) => {
-        console.error('API Error:', error);
         return Promise.reject(error);
     }
 );
