@@ -14,10 +14,13 @@ builder.Services.AddCors(options =>
                         .AllowAnyMethod());
 });
 
-// 2. เชื่อมต่อ PostgreSQL (อ่านรหัสผ่านจาก appsettings.json)
+// 2. เชื่อมต่อ PostgreSQL และบังคับให้ตาราง History อยู่ที่ public schema
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        x => x.MigrationsHistoryTable("__EFMigrationsHistory", "public") // 👈 ระบุชื่อตาราง และชื่อ Schema ชัดเจน
+    ));
+    
 // 3. ลงทะเบียน Service (บอกระบบว่าถ้ามีคนขอ IEmployeeService ให้เรียกใช้ EmployeeService)
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 
