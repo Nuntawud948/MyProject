@@ -1,4 +1,4 @@
-using Domain.Entities.Hrms;
+using Domain.Entities.HRMS;
 using Domain.Entities.UMS;
 using Microsoft.EntityFrameworkCore;
 
