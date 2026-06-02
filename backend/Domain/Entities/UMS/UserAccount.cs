@@ -13,8 +13,10 @@ public class UserAccount : BaseEntity
     public string PasswordHash { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     
-    // 🟢 สิทธิ์การเข้าใช้งานระบบเว็บ (เช่น Admin, HR, User)
-    public string Role { get; set; } = "User";
+    // 🟢 สิทธิ์การเข้าใช้งานระบบเว็บ (เชื่อมโยงไปยังตาราง Role ในระบบ HRMS)
+    public int? RoleId { get; set; }
+    [ForeignKey(nameof(RoleId))]
+    public Role? Role { get; set; }
 
     // 💡 (Optional) ฟิลด์แนะนำเพิ่มเติมสำหรับทำระบบ Login สมัยใหม่
     // ถ้ายังไม่อยากเพิ่มตอนนี้ สามารถคอมเมนต์ไว้ก่อนได้ครับ

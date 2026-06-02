@@ -39,5 +39,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(u => u.Employee)
             .WithMany()
             .HasForeignKey(u => u.EmployeeId);
+
+        // กำหนดความสัมพันธ์ระหว่าง UserAccount และ Role ให้แยกจากกันอย่างชัดเจน เพื่อป้องกัน EF Core สับสนกับ CreatedBy/UpdatedBy
+        modelBuilder.Entity<UserAccount>()
+            .HasOne(u => u.Role)
+            .WithMany()
+            .HasForeignKey(u => u.RoleId);
     }
 }
