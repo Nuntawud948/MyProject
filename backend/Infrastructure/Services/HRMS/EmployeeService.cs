@@ -61,7 +61,7 @@ public class EmployeeService(
                 Code = e.Code,
                 FirstName = e.FirstName,
                 LastName = e.LastName,
-                StartDate = e.StartDate,
+               // StartDate = e.StartDate,
                 IsActive = e.IsActive,
                // Department = e.Department,
               //  PhoneNumber = e.PhoneNumber,

@@ -3,6 +3,7 @@ using System;
 using Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601190534_AddUserAuditAndRelations")]
+    partial class AddUserAuditAndRelations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -139,9 +142,6 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("FirstApproverId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -157,17 +157,11 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("ProfilePictureUrl")
-                        .HasColumnType("text");
-
                     b.Property<int?>("RoleId")
                         .HasColumnType("integer");
 
                     b.Property<decimal?>("Salary")
                         .HasColumnType("numeric");
-
-                    b.Property<int?>("SecondApproverId")
-                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("StartDate")
                         .HasColumnType("timestamp with time zone");
@@ -185,9 +179,6 @@ namespace Infrastructure.Migrations
                     b.Property<int?>("UserAccountId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("WorkEmail")
-                        .HasColumnType("text");
-
                     b.HasKey("Id");
 
                     b.HasIndex("BusinessUnitId");
@@ -196,11 +187,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("DepartmentId");
 
-                    b.HasIndex("FirstApproverId");
-
                     b.HasIndex("RoleId");
-
-                    b.HasIndex("SecondApproverId");
 
                     b.HasIndex("UpdatedById");
 
@@ -357,17 +344,9 @@ namespace Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("DepartmentId");
 
-                    b.HasOne("Domain.Entities.HRMS.Employee", "FirstApprover")
-                        .WithMany()
-                        .HasForeignKey("FirstApproverId");
-
                     b.HasOne("Domain.Entities.HRMS.Role", "Role")
                         .WithMany()
                         .HasForeignKey("RoleId");
-
-                    b.HasOne("Domain.Entities.HRMS.Employee", "SecondApprover")
-                        .WithMany()
-                        .HasForeignKey("SecondApproverId");
 
                     b.HasOne("Domain.Entities.UMS.UserAccount", "UpdatedByUser")
                         .WithMany()
@@ -383,11 +362,7 @@ namespace Infrastructure.Migrations
 
                     b.Navigation("Department");
 
-                    b.Navigation("FirstApprover");
-
                     b.Navigation("Role");
-
-                    b.Navigation("SecondApprover");
 
                     b.Navigation("UpdatedByUser");
 
