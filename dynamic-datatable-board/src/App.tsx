@@ -7,10 +7,11 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { MainLayout } from './components/layouts/MainLayout';
 import { EmployeeDashboardPage } from './features/hrms/pages/EmployeeDashboardPage';
+import { LeaveDashboardPage } from './features/hrms/pages/LeaveDashboardPage';
 import { RoleManagementPage } from './features/setup/pages/RoleManagementPage';
 import LoginPage from './features/auth/pages/LoginPage';
 import ProtectedRoute from './components/shared/data-table/ProtectedRoute';
-import { CalendarDays, FileSpreadsheet, Clock, Shield, UserCheck, AlertOctagon } from 'lucide-react';
+import { CalendarDays, Clock, Shield, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 // 🧠 คอมโพเนนต์หน้าหน้าแรกสุด (Dashboard หลัก) ที่เราย้ายพิกัดมาลงล็อกระบบ Routing
@@ -109,13 +110,7 @@ export default function App() {
             {/* 👥 โมดูลระบบบริหารงานบุคคล HRMS */}
             <Route path="/hrms/employees" element={<EmployeeDashboardPage />} />
 
-            <Route path="/hrms/leaves" element={
-              <DummyPlaceholder
-                title="Leave Requests Ledger"
-                description="The leave balance ledger depends on another database table. Switch back to Employee Management to see our operational Datatable."
-                icon={FileSpreadsheet}
-              />
-            } />
+            <Route path="/hrms/leaves" element={<LeaveDashboardPage />} />
 
             <Route path="/hrms/attendance" element={
               <DummyPlaceholder

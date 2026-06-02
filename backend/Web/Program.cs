@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Interfaces.HRMS;
 using Infrastructure.Database;
 using Infrastructure.Services.Auth;
 using Infrastructure.Services.Common;
@@ -38,6 +39,9 @@ builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IFilterService, FilterService>();
 builder.Services.AddScoped<ISortService, SortService>();
 builder.Services.AddScoped<IPaginationService, PaginationService>();
+
+// ── Leave Management
+builder.Services.AddScoped<ILeaveService, LeaveService>();
 
 // ลงทะเบียนระบบสิทธิ์และยืนยันตัวตน UMS
 builder.Services.AddScoped<IAuthService, AuthService>();

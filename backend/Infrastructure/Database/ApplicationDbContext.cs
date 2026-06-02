@@ -15,6 +15,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<UserAccount> UserAccounts { get; set; }
 
+    // ── Leave Management ─────────────────────────────────────────────────────
+    public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
+    public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -45,5 +50,48 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(u => u.Role)
             .WithMany()
             .HasForeignKey(u => u.RoleId);
+
+        // ── Leave Management — Table Schema ──────────────────────────────────
+        modelBuilder.Entity<LeaveType>().ToTable("LeaveTypes", "hrms");
+        modelBuilder.Entity<LeaveBalance>().ToTable("LeaveBalances", "hrms");
+        modelBuilder.Entity<LeaveRequest>().ToTable("LeaveRequests", "hrms");
+
+        // ── LeaveBalance Relationships (Restrict to avoid cascade cycles) ────
+        modelBuilder.Entity<LeaveBalance>()
+            .HasOne(lb => lb.Employee)
+            .WithMany()
+            .HasForeignKey(lb => lb.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<LeaveBalance>()
+            .HasOne(lb => lb.LeaveType)
+            .WithMany()
+            .HasForeignKey(lb => lb.LeaveTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ── LeaveRequest Relationships (Restrict to avoid cascade cycles) ────
+        modelBuilder.Entity<LeaveRequest>()
+            .HasOne(lr => lr.Employee)
+            .WithMany()
+            .HasForeignKey(lr => lr.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<LeaveRequest>()
+            .HasOne(lr => lr.LeaveType)
+            .WithMany()
+            .HasForeignKey(lr => lr.LeaveTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<LeaveRequest>()
+            .HasOne(lr => lr.FirstApprover)
+            .WithMany()
+            .HasForeignKey(lr => lr.FirstApproverId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<LeaveRequest>()
+            .HasOne(lr => lr.SecondApprover)
+            .WithMany()
+            .HasForeignKey(lr => lr.SecondApproverId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

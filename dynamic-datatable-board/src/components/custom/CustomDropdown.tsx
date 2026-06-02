@@ -70,12 +70,13 @@ export function CustomDropdown({
         setIsLoading(true);
         try {
           const res = await axiosClient.get(apiEndpoint, {
-            params: { search: searchText }
+            params: { search: searchText, pageSize: 500, pageNumber: 1 }
           });
-          const serverItems = res.data?.data || res.data || [];
+          const serverItems = res.data?.data?.items || res.data?.items || res.data?.data || res.data || [];
           const mapped = serverItems.map((item: any) => {
-            const val = valueProperty ? item[valueProperty] : (item.id ?? item.value);
-            const lbl = textProperty ? item[textProperty] : (item.name || item.fullName || item.label || String(item));
+            // Support both camelCase and PascalCase
+            const val = valueProperty ? (item[valueProperty] ?? item[valueProperty.charAt(0).toUpperCase() + valueProperty.slice(1)]) : (item.id ?? item.Id ?? item.value);
+            const lbl = textProperty ? (item[textProperty] ?? item[textProperty.charAt(0).toUpperCase() + textProperty.slice(1)]) : (item.name ?? item.Name ?? item.fullName ?? item.FullName ?? item.label ?? String(item));
             return {
               value: String(val),
               label: String(lbl)
