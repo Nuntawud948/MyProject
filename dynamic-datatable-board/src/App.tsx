@@ -13,6 +13,7 @@ import LoginPage from './features/auth/pages/LoginPage';
 import ProtectedRoute from './components/shared/data-table/ProtectedRoute';
 import { CalendarDays, Clock, Shield, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import TestPage from "@/features/setup/TestPage.tsx";
 
 // 🧠 คอมโพเนนต์หน้าหน้าแรกสุด (Dashboard หลัก) ที่เราย้ายพิกัดมาลงล็อกระบบ Routing
 function DashboardContent() {
@@ -128,6 +129,7 @@ export default function App() {
                 icon={Shield}
               />
             } />
+            <Route path="/setup/test" element={<TestPage />} />
 
             <Route path="/setup/roles" element={<RoleManagementPage />} />
 
