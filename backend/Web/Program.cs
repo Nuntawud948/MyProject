@@ -5,6 +5,8 @@ using Infrastructure.Services.Common;
 using Infrastructure.Services.Hrms;
 using Microsoft.EntityFrameworkCore;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. ตั้งค่า CORS (อนุญาตให้ React พอร์ต 5173 ยิง API เข้ามาได้)
