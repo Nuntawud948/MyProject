@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Domain.Common;
+using Domain.Entities.HRMS;
 
 namespace Domain.Entities.UMS; // 👈 เปลียน Namespace เป็นกลุ่ม UMS คลีนๆ
 
@@ -19,4 +21,9 @@ public class UserAccount : BaseEntity
     public DateTime? LastLoginDate { get; set; } 
     public string? RefreshToken { get; set; } 
     public DateTime? RefreshTokenExpiryTime { get; set; } 
+
+    // 🔗 เชื่อมโยงข้อมูลพนักงาน (Employee)
+    public int? EmployeeId { get; set; }
+    [ForeignKey(nameof(EmployeeId))]
+    public Employee? Employee { get; set; }
 }

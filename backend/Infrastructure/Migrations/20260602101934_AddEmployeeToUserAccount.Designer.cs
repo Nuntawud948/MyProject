@@ -3,6 +3,7 @@ using System;
 using Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260602101934_AddEmployeeToUserAccount")]
+    partial class AddEmployeeToUserAccount
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -207,7 +210,8 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("UserAccountId");
+                    b.HasIndex("UserAccountId")
+                        .IsUnique();
 
                     b.ToTable("Employees", "hrms");
                 });
@@ -273,9 +277,6 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("EmployeeId")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -313,8 +314,6 @@ namespace Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedById");
-
-                    b.HasIndex("EmployeeId");
 
                     b.HasIndex("UpdatedById");
 
@@ -382,8 +381,8 @@ namespace Infrastructure.Migrations
                         .HasForeignKey("UpdatedById");
 
                     b.HasOne("Domain.Entities.UMS.UserAccount", "UserAccount")
-                        .WithMany()
-                        .HasForeignKey("UserAccountId");
+                        .WithOne("Employee")
+                        .HasForeignKey("Domain.Entities.HRMS.Employee", "UserAccountId");
 
                     b.Navigation("BusinessUnit");
 
@@ -423,19 +422,18 @@ namespace Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CreatedById");
 
-                    b.HasOne("Domain.Entities.HRMS.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId");
-
                     b.HasOne("Domain.Entities.UMS.UserAccount", "UpdatedByUser")
                         .WithMany()
                         .HasForeignKey("UpdatedById");
 
                     b.Navigation("CreatedByUser");
 
-                    b.Navigation("Employee");
-
                     b.Navigation("UpdatedByUser");
+                });
+
+            modelBuilder.Entity("Domain.Entities.UMS.UserAccount", b =>
+                {
+                    b.Navigation("Employee");
                 });
 #pragma warning restore 612, 618
         }

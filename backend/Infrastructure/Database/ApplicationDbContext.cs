@@ -28,5 +28,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<BusinessUnit>().ToTable("BusinessUnits", "hrms");
 
         modelBuilder.Entity<UserAccount>().ToTable("UserAccounts", "ums");
+
+        // กำหนดความสัมพันธ์ระหว่าง Employee และ UserAccount ให้แยกจากกันอย่างชัดเจน เพื่อป้องกัน EF Core สับสนกับ CreatedBy/UpdatedBy
+        modelBuilder.Entity<Employee>()
+            .HasOne(e => e.UserAccount)
+            .WithMany()
+            .HasForeignKey(e => e.UserAccountId);
+
+        modelBuilder.Entity<UserAccount>()
+            .HasOne(u => u.Employee)
+            .WithMany()
+            .HasForeignKey(u => u.EmployeeId);
     }
 }
