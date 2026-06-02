@@ -526,6 +526,127 @@ public class LeaveService(
     }
 
     // ══════════════════════════════════════════════════════════════════════════
+    //  ADMIN / AUTOMATION
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /// <inheritdoc/>
+    public async Task AllocateInitialLeaveBalancesAsync(int employeeId)
+    {
+        var employee = await context.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == employeeId && e.IsActive);
+
+        if (employee == null)
+            return;
+
+        var leaveTypes = await context.LeaveTypes
+            .AsNoTracking()
+            .Where(lt => lt.IsActive)
+            .ToListAsync();
+
+        var today = DateTime.UtcNow.Date;
+
+        var balances = leaveTypes.Select(lt =>
+        {
+            bool hasOneYear = employee.StartDate.HasValue
+                && (today - employee.StartDate.Value.Date).TotalDays >= 365;
+
+            decimal allocatedHours = (lt.RequiresOneYearService && !hasOneYear)
+                ? 0m
+                : lt.MaxDaysPerYear * 8m;
+
+            return new LeaveBalance
+            {
+                EmployeeId = employeeId,
+                LeaveTypeId = lt.Id,
+                AllocatedHours = allocatedHours,
+                UsedHours = 0m
+            };
+        }).ToList();
+
+        context.LeaveBalances.AddRange(balances);
+        await context.SaveChangesAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task AllocateRetroactiveBalancesAsync()
+    {
+        // Find active employees that have NO leave balance records at all
+        var employeeIdsWithBalances = await context.LeaveBalances
+            .AsNoTracking()
+            .Select(lb => lb.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+
+        var employeesWithoutBalances = await context.Employees
+            .AsNoTracking()
+            .Where(e => e.IsActive && !employeeIdsWithBalances.Contains(e.Id))
+            .ToListAsync();
+
+        foreach (var employee in employeesWithoutBalances)
+        {
+            await AllocateInitialLeaveBalancesAsync(employee.Id);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task ProcessYearlyLeaveRolloverAsync()
+    {
+        var today = DateTime.UtcNow.Date;
+
+        var balances = await context.LeaveBalances
+            .Include(lb => lb.LeaveType)
+            .Include(lb => lb.Employee)
+            .Where(lb => lb.IsActive && lb.Employee != null && lb.Employee.IsActive)
+            .ToListAsync();
+
+        foreach (var balance in balances)
+        {
+            var leaveType = balance.LeaveType;
+            if (leaveType == null) continue;
+
+            if (leaveType.RequiresOneYearService)
+            {
+                // ── Annual Leave (ลาพักร้อน) carry-forward logic ────────────
+                bool hasOneYear = balance.Employee!.StartDate.HasValue
+                    && (today - balance.Employee.StartDate.Value.Date).TotalDays >= 365;
+
+                if (!hasOneYear)
+                {
+                    // Not yet eligible — do nothing this year
+                    continue;
+                }
+
+                decimal yearlyQuotaHours = leaveType.MaxDaysPerYear * 8m;
+                decimal maxHours = leaveType.MaxAccumulatedDays > 0
+                    ? leaveType.MaxAccumulatedDays * 8m
+                    : decimal.MaxValue;
+
+                // AvailableHours = AllocatedHours - UsedHours; carry forward
+                decimal currentRemaining = balance.AllocatedHours - balance.UsedHours;
+                decimal newTotal = currentRemaining + yearlyQuotaHours;
+
+                // Cap at maximum accumulated limit
+                newTotal = Math.Min(newTotal, maxHours);
+
+                // Reset used hours, set new allocation = capped total
+                balance.AllocatedHours = newTotal;
+                balance.UsedHours = 0m;
+            }
+            else
+            {
+                // ── All other leave types: full yearly reset ───────────────
+                balance.UsedHours = 0m;
+                balance.AllocatedHours = leaveType.MaxDaysPerYear * 8m;
+            }
+
+            balance.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     //  PRIVATE HELPERS
     // ══════════════════════════════════════════════════════════════════════════
 

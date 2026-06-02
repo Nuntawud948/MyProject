@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Interfaces.HRMS;
 using Application.Common.Models;
 using Application.Dtos.HRMS;
 using Domain.Entities.HRMS;
@@ -12,7 +13,8 @@ public class EmployeeService(
     ApplicationDbContext context,
     IFilterService filterService,
     ISortService sortService,
-    IPaginationService paginationService
+    IPaginationService paginationService,
+    ILeaveService leaveService
 ) : IEmployeeService
 {
     public async Task<Response<PaginationResponse<EmployeeResponse>>> GetEmployeesAsync(
@@ -214,7 +216,8 @@ public class EmployeeService(
             
             await context.SaveChangesAsync();
 
-           
+            // Auto-allocate leave balances for the new employee
+            await leaveService.AllocateInitialLeaveBalancesAsync(emp.Id);
 
            
             return new Response<EmployeeFormDto> 

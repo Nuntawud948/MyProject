@@ -110,4 +110,28 @@ public class LeavesController(ILeaveService leaveService) : ControllerBase
         if (!result.IsSuccess) return NotFound(result);
         return Ok(result);
     }
+
+    // ── Admin / Automation ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Back-fill leave balances for all active employees who don't have any yet.
+    /// Safe to call multiple times — only processes employees with zero balance records.
+    /// </summary>
+    [HttpPost("admin/allocate-retroactive")]
+    public async Task<IActionResult> AllocateRetroactive()
+    {
+        await leaveService.AllocateRetroactiveBalancesAsync();
+        return Ok(new { IsSuccess = true, Message = "Retroactive leave balances allocated successfully for all eligible employees." });
+    }
+
+    /// <summary>
+    /// Triggers the yearly leave rollover:
+    /// Annual Leave carries forward (capped at MaxAccumulatedDays), all other leaves are reset.
+    /// </summary>
+    [HttpPost("admin/yearly-rollover")]
+    public async Task<IActionResult> YearlyRollover()
+    {
+        await leaveService.ProcessYearlyLeaveRolloverAsync();
+        return Ok(new { IsSuccess = true, Message = "Yearly leave rollover processed successfully for all active employees." });
+    }
 }

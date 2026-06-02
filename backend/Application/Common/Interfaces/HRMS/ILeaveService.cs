@@ -26,4 +26,27 @@ public interface ILeaveService
     // ── Approvals ────────────────────────────────────────────────────────────
     Task<Response<LeaveRequestResponse>> ApproveFirstLevelAsync(int id, LeaveApprovalRequest request);
     Task<Response<LeaveRequestResponse>> ApproveSecondLevelAsync(int id, LeaveApprovalRequest request);
+
+    // ── Admin / Automation ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Allocates leave balances for a single employee based on active LeaveTypes.
+    /// Respects the RequiresOneYearService rule (0 hours until 1-year anniversary).
+    /// Called automatically after new employee creation.
+    /// </summary>
+    Task AllocateInitialLeaveBalancesAsync(int employeeId);
+
+    /// <summary>
+    /// One-off back-fill: finds all active employees who have NO LeaveBalance records
+    /// and runs AllocateInitialLeaveBalancesAsync for each of them.
+    /// </summary>
+    Task AllocateRetroactiveBalancesAsync();
+
+    /// <summary>
+    /// Yearly reset/rollover:
+    ///  - Annual Leave (RequiresOneYearService=true): adds the year's quota to AvailableHours,
+    ///    capped at MaxAccumulatedDays * 8.
+    ///  - All other leaves: resets UsedHours → 0 and AllocatedHours → MaxDaysPerYear * 8.
+    /// </summary>
+    Task ProcessYearlyLeaveRolloverAsync();
 }
