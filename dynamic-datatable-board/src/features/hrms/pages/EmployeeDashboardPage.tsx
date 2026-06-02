@@ -8,15 +8,16 @@ import {
   Users,
   CalendarCheck,
   Briefcase,
-  SlidersHorizontal,
-  UserCheck
+  UserCheck,
+  Plus
 } from 'lucide-react';
 import { DataTable, DataTableColumnDef, TableQueryParams } from '@/components/shared/data-table/DataTable';
-import { FilterOption } from '@/components/shared/data-table/DataFilterBar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { employee } from '@/api/hrms/employee';
 import { CustomCard } from '@/components/custom/CustomCard';
+import { CustomButton } from '@/components/custom/CustomButton';
+import { EmployeeCreateViewUpdatePage, EmployeeFormData } from './employees/EmployeeCreateViewUpdatePage';
 
 export interface Employee {
   id: string;
@@ -27,13 +28,21 @@ export interface Employee {
   isActive: boolean;
   phoneNumber?: string;
   resignationDate?: Date | null;
+  employmentType?: string;
+  salary?: number;
 }
 
 export function EmployeeDashboardPage() {
   // States for row actions and KPI metrics
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
-  const [selectedEmployeeForDetail, setSelectedEmployeeForDetail] = useState<Employee | null>(null);
-  const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState<Employee | null>(null);
+  
+  // Dialog/Modal State
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'create' | 'view' | 'edit'>('create');
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  
+  // Reload counter to force table re-fetch
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Stats purely for rendering the KPI metric cards at the top
   const [pageStats, setPageStats] = useState({ visibleCount: 0, activeCount: 0, newHiresCount: 0, totalCount: 0 });
@@ -132,10 +141,28 @@ export function EmployeeDashboardPage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveRowMenuId(null); }} />
                 <div className="absolute right-0 mt-1.5 w-32 rounded-lg border border-slate-200 bg-white py-1.5 shadow-lg z-50 text-left animate-in fade-in-50 duration-100" onClick={(e) => e.stopPropagation()}>
-                  <button type="button" onClick={() => { setSelectedEmployeeForDetail(emp); setActiveRowMenuId(null); }} className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setDialogMode('view');
+                      setIsDialogOpen(true);
+                      setActiveRowMenuId(null);
+                    }}
+                    className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors"
+                  >
                     Detail
                   </button>
-                  <button type="button" onClick={() => { setSelectedEmployeeForEdit(emp); setActiveRowMenuId(null); }} className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setDialogMode('edit');
+                      setIsDialogOpen(true);
+                      setActiveRowMenuId(null);
+                    }}
+                    className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors"
+                  >
                     Edit
                   </button>
                 </div>
@@ -171,7 +198,9 @@ export function EmployeeDashboardPage() {
       startDate: item.startDate ? new Date(item.startDate) : new Date(),
       isActive: item.isActive !== undefined ? item.isActive : true,
       phoneNumber: item.phoneNumber || item.PhoneNumber || '-',
-      resignationDate: item.resignationDate ? new Date(item.resignationDate) : null
+      resignationDate: item.resignationDate ? new Date(item.resignationDate) : null,
+      employmentType: item.employmentType || 'Full-time',
+      salary: item.salary || 0
     }));
 
     return {
@@ -199,6 +228,19 @@ export function EmployeeDashboardPage() {
     });
   };
 
+  // Handles Dialog Submission (Create/Update)
+  const handleSaveEmployee = async (formData: EmployeeFormData) => {
+    // In production, this calls a create or update endpoint.
+    // For now we mock the API submission success, then refresh the table.
+    console.log('Saving employee details:', formData);
+    
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    // Force data table refresh
+    setRefreshCounter((prev) => prev + 1);
+  };
+
   const activePercentage = pageStats.visibleCount > 0 ? Math.round((pageStats.activeCount / pageStats.visibleCount) * 100) : 0;
 
   return (
@@ -212,6 +254,19 @@ export function EmployeeDashboardPage() {
           <p className="text-xs text-slate-500 mt-1 leading-normal max-w-xl">
             Control employee records, design filters dynamic, audit roles, and track active statuses synced directly against enterprise API logs.
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <CustomButton
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => {
+              setSelectedEmployee(null);
+              setDialogMode('create');
+              setIsDialogOpen(true);
+            }}
+          >
+            Add Employee
+          </CustomButton>
         </div>
       </div>
 
@@ -257,6 +312,7 @@ export function EmployeeDashboardPage() {
 
       {/* Global generic DataTable Instance */}
       <DataTable
+        key={refreshCounter}
         columns={columns}
         fetchData={fetchEmployees}
         onDataLoaded={handleDataLoaded}
@@ -268,85 +324,14 @@ export function EmployeeDashboardPage() {
         ]}
       />
 
-      {/* DETAIL VIEW MODAL - Unchanged */}
-      {selectedEmployeeForDetail && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 animate-in fade-in duration-100">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xl max-w-md w-full overflow-hidden text-left animate-in zoom-in-95 duration-150 m-4">
-            <div className="p-5 border-b border-slate-100 bg-slate-50/75 flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
-                <span>Employee Registry File</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSelectedEmployeeForDetail(null)}
-                className="h-7 w-7 rounded-md hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer text-sm font-bold transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
-                <div className="h-12 w-12 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-black text-lg">
-                  {selectedEmployeeForDetail.fullName ? selectedEmployeeForDetail.fullName.split(' ').map((n) => n[0]).join('') : 'EM'}
-                </div>
-                <div>
-                  <h4 className="text-sm font-extrabold text-slate-900 leading-tight">
-                    {selectedEmployeeForDetail.fullName}
-                  </h4>
-                  <p className="text-xs text-slate-400 font-mono font-bold mt-1 bg-slate-100 px-2 py-0.5 rounded border border-slate-205 inline-block">
-                    {selectedEmployeeForDetail.code}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-xs font-semibold">
-                <div>
-                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Department</span>
-                  <p className="text-slate-800 text-xs mt-0.5">{selectedEmployeeForDetail.department}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Phone Number</span>
-                  <p className="text-slate-800 font-mono text-xs mt-0.5">{selectedEmployeeForDetail.phoneNumber || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Start Date</span>
-                  <p className="text-slate-800 text-xs mt-0.5">
-                    {selectedEmployeeForDetail.startDate instanceof Date && !isNaN(selectedEmployeeForDetail.startDate.getTime())
-                      ? selectedEmployeeForDetail.startDate.toLocaleDateString('th-TH', { month: 'long', day: 'numeric', year: 'numeric' })
-                      : 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-400 uppercase font-extrabold text-[10px]">Status</span>
-                  <div className="mt-1">
-                    <Badge variant={selectedEmployeeForDetail.isActive ? 'success' : 'destructive'}>
-                      {selectedEmployeeForDetail.isActive ? 'ทำงานอยู่' : 'ลาออกแล้ว'}
-                    </Badge>
-                  </div>
-                </div>
-                {!selectedEmployeeForDetail.isActive && selectedEmployeeForDetail.resignationDate && (
-                  <div className="col-span-2 pt-2 border-t border-slate-50">
-                    <span className="text-red-400 uppercase font-extrabold text-[10px]">Resignation Date</span>
-                    <p className="text-red-600 text-xs mt-0.5">
-                      {selectedEmployeeForDetail.resignationDate.toLocaleDateString('th-TH', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-              <Button
-                onClick={() => setSelectedEmployeeForDetail(null)}
-                className="text-xs font-bold px-4 py-2 bg-slate-900 border border-transparent text-white rounded-md hover:bg-slate-800 transition cursor-pointer"
-              >
-                Close Registry
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* CREATE / VIEW / EDIT MODAL DIALOG */}
+      <EmployeeCreateViewUpdatePage
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        mode={dialogMode}
+        employeeData={selectedEmployee}
+        onSave={handleSaveEmployee}
+      />
     </div>
   );
 }
