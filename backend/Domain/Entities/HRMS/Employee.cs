@@ -22,7 +22,7 @@ public class Employee : BaseEntity
 
     public int? RoleId { get; set; } 
     public Role? Role { get; set; }
-
+    public string? Phonenumber { get; set; } 
     public int? BusinessUnitId { get; set; } 
     [ForeignKey(nameof(BusinessUnitId))]
     public BusinessUnit? BusinessUnit { get; set; }

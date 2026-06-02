@@ -202,29 +202,29 @@ public class EmployeeService(
         }
     }
 
-    public async Task<Response<EmployeeResponse>> CreateEmployeeAsync(EmployeeFormDto request)
+    public async Task<Response<EmployeeFormDto>> CreateEmployeeAsync(EmployeeFormDto request)
     {
         try
         {
+            var db = context.Employees;  
+
             var emp = EmployeeMapper.Instance.MapToEntity(request);
 
-            context.Employees.Add(emp);
+            db.Add(emp);
+            
             await context.SaveChangesAsync();
 
-            // Load relations to return populated EmployeeResponse
-            var created = await context.Employees
-                .AsNoTracking()
-                .Include(e => e.Department)
-                .Include(e => e.Role)
-                .FirstOrDefaultAsync(e => e.Id == emp.Id);
+           
 
-            var res = EmployeeMapper.Instance.MapToResponse(created!);
-
-            return new Response<EmployeeResponse> { IsSuccess = true, Data = res, Message = "Employee created successfully." };
+           
+            return new Response<EmployeeFormDto> 
+                { IsSuccess = true, 
+                    Data = request, 
+                    Message = "Employee created successfully." };
         }
         catch (Exception ex)
         {
-            return new Response<EmployeeResponse> { IsSuccess = false, Message = ex.Message };
+            return new Response<EmployeeFormDto> { IsSuccess = false, Message = ex.Message };
         }
     }
 
