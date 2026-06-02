@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Users,
   CalendarCheck,
@@ -11,93 +11,41 @@ import {
   SlidersHorizontal,
   UserCheck
 } from 'lucide-react';
-import { DataTable, FilterableColumnDef } from '@/components/shared/data-table/DataTable';
+import { DataTable, DataTableColumnDef, TableQueryParams } from '@/components/shared/data-table/DataTable';
 import { FilterOption } from '@/components/shared/data-table/DataFilterBar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { employee, HRMSQueryParams } from '@/api/hrms/employee';
+import { employee } from '@/api/hrms/employee';
 import { CustomCard } from '@/components/custom/CustomCard';
 
-import { PaginatedDto } from '@/dto/common/paginated-dto';
-
-// 🌟 ปรับปรุงอินเตอร์เฟสให้ตรงตามโครงสร้างตารางและ DTO ตัวจริงหลังบ้าน
 export interface Employee {
   id: string;
   code: string;
   fullName: string;
   department: string;
   startDate: Date;
-  isActive: boolean;        // 👈 เปลี่ยนเป็น boolean ตรงตามเบสจริง
-  phoneNumber?: string;     // 👈 เพิ่มเข้ามารองรับตารางใหม่
-  resignationDate?: Date | null; // 👈 เพิ่มเข้ามารองรับตารางใหม่
+  isActive: boolean;
+  phoneNumber?: string;
+  resignationDate?: Date | null;
 }
 
-// Define dynamic filter options matching components criteria
-const FILTER_CONFIGURATION: FilterOption[] = [
-  {
-    key: 'code',            // 👈 เปลี่ยนจาก searchQuery เป็น code ยิงตรงเข้าพารามิเตอร์หลังบ้าน
-    label: 'Code',
-    type: 'string',
-    placeholder: 'Search code...'
-  },
-  {
-    key: 'firstName',       // 👈 เพิ่มช่องกรองแยก FirstName ตามที่หลังบ้านแกะรับสายไว้
-    label: 'First Name',
-    type: 'string',
-    placeholder: 'Search first name...'
-  },
-  {
-    key: 'lastName',        // 👈 เพิ่มช่องกรองแยก LastName 
-    label: 'Last Name',
-    type: 'string',
-    placeholder: 'Search last name...'
-  },
-  {
-    key: 'department',
-    label: 'Department',
-    type: 'select',
-    placeholder: 'All Departments',
-    apiEndpoint: '/api/departments',
-    textProperty: 'deptTitle',
-    valueProperty: 'deptId',
-    filterable: true
-  }
-];
-
 export function EmployeeDashboardPage() {
-  // 🌟 ปรับแต่ง Active Query request packet ให้ตรงล็อก EmployeeRequest.cs ของ C#
-  const [queryParams, setQueryParams] = useState<HRMSQueryParams>({
-    code: '',
-    firstName: '',
-    lastName: '',
-    department: '',
-    status: '', // ส่งเป็นข้อความสเตตัส หรือปรับตามกลไกคัดกรอง
-    pageSize: 10,
-    pageIndex: 0
-  });
-
-  // Presentation State indicators using standardized PaginatedDto
-  const [paginatedData, setPaginatedData] = useState<PaginatedDto<Employee>>({
-    items: [],
-    totalCount: 0,
-    pageSize: 10,
-    pageIndex: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [showErrorState, setShowErrorState] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
-  // States for row actions
+  // States for row actions and KPI metrics
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
   const [selectedEmployeeForDetail, setSelectedEmployeeForDetail] = useState<Employee | null>(null);
   const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState<Employee | null>(null);
 
-  // Tanstack Table structural column definitions
-  const columns: FilterableColumnDef<Employee>[] = [
+  // Stats purely for rendering the KPI metric cards at the top
+  const [pageStats, setPageStats] = useState({ visibleCount: 0, activeCount: 0, newHiresCount: 0, totalCount: 0 });
+
+  // Tanstack Table structural column definitions WITH embedded filters
+  const columns: DataTableColumnDef<Employee>[] = [
     {
       accessorKey: 'code',
       header: 'Employee Code',
+      isGlobalFilter: true, // Adds to top DataFilterBar
+      filterType: 'string',
+      filterPlaceholder: 'Search code...',
       cell: ({ row }) => (
         <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/50">
           {row.original.code}
@@ -106,7 +54,6 @@ export function EmployeeDashboardPage() {
     },
     {
       accessorKey: 'fullName',
-      header: 'Full Name',
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-full bg-slate-900/5 text-slate-700 flex items-center justify-center font-bold text-xs select-none">
@@ -119,6 +66,12 @@ export function EmployeeDashboardPage() {
     {
       accessorKey: 'department',
       header: 'Department',
+      isGlobalFilter: true, // Auto-generates dropdown filter
+      filterType: 'select',
+      filterPlaceholder: 'All Departments',
+      filterApiEndpoint: '/api/departments',
+      filterTextProperty: 'deptTitle',
+      filterValueProperty: 'deptId',
       cell: ({ row }) => (
         <span className="text-slate-600 font-medium">{row.original.department}</span>
       )
@@ -133,6 +86,7 @@ export function EmployeeDashboardPage() {
     {
       accessorKey: 'startDate',
       header: 'Start Date',
+
       cell: ({ row }) => {
         const val = row.original.startDate;
         return (
@@ -147,19 +101,16 @@ export function EmployeeDashboardPage() {
     {
       accessorKey: 'isActive',
       header: 'Status',
-      cell: ({ row }) => {
-        const isActive = row.original.isActive;
-        // แสดงผล Badge ตามสถานะ Boolean จริงจาก PostgreSQL 
-        return (
-          <Badge variant={isActive ? 'success' : 'destructive'}>
-            {isActive ? 'ทำงานอยู่' : 'ลาออกแล้ว'}
-          </Badge>
-        );
-      }
+      cell: ({ row }) => (
+        <Badge variant={row.original.isActive ? 'success' : 'destructive'}>
+          {row.original.isActive ? 'ทำงานอยู่' : 'ลาออกแล้ว'}
+        </Badge>
+      )
     },
     {
       id: 'actions',
       header: 'Actions',
+      align: 'right',
       cell: ({ row }) => {
         const emp = row.original;
         const isMenuOpen = activeRowMenuId === emp.id;
@@ -179,35 +130,12 @@ export function EmployeeDashboardPage() {
 
             {isMenuOpen && (
               <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveRowMenuId(null);
-                  }}
-                />
-                <div
-                  className="absolute right-0 mt-1.5 w-32 rounded-lg border border-slate-200 bg-white py-1.5 shadow-lg z-50 text-left animate-in fade-in-50 duration-100"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedEmployeeForDetail(emp);
-                      setActiveRowMenuId(null);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors"
-                  >
+                <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveRowMenuId(null); }} />
+                <div className="absolute right-0 mt-1.5 w-32 rounded-lg border border-slate-200 bg-white py-1.5 shadow-lg z-50 text-left animate-in fade-in-50 duration-100" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => { setSelectedEmployeeForDetail(emp); setActiveRowMenuId(null); }} className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors">
                     Detail
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedEmployeeForEdit(emp);
-                      setActiveRowMenuId(null);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors"
-                  >
+                  <button type="button" onClick={() => { setSelectedEmployeeForEdit(emp); setActiveRowMenuId(null); }} className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold flex items-center gap-2 cursor-pointer transition-colors">
                     Edit
                   </button>
                 </div>
@@ -219,95 +147,59 @@ export function EmployeeDashboardPage() {
     }
   ];
 
-  // 🚀 ดึงข้อมูลจาก C# .NET API พร้อมทำแบบแผน Mapping ลงล็อกตารางใหม่
-  // 🚀 ดึงข้อมูลจาก C# .NET API พร้อมทำแบบแผน Mapping ลงล็อกตารางใหม่
-  const fetchActiveDatabaseRecords = async () => {
-    try {
-      setIsLoading(true);
-      setShowErrorState(false);
+  // 🚀 The Universal Fetch Bridge for DataTable
+  const fetchEmployees = async (params: TableQueryParams) => {
+    // 1. Map DataTable params to C# DTO directly
+    const payload = {
+      pageIndex: params.pageIndex,
+      pageSize: params.pageSize,
+      sortBy: params.sortBy,
+      sortDirection: params.sortDirection,
+      ...params.filters // Injects code, firstName, lastName, department etc.
+    };
 
-      // แปลงโครงสร้างจาก pageIndex (เริ่มจาก 0) เป็น pageNumber (เริ่มจาก 1) ยิงไปหาคอนโทรลเลอร์ C#
-      const payload = {
-        ...queryParams,
-        pageNumber: queryParams.pageIndex + 1,
-        pageSize: queryParams.pageSize
-      };
+    const response = await employee.getEmployees(payload);
+    const serverPayload = response.data?.data ? response.data.data : response.data;
+    const rawItems = serverPayload?.items || [];
 
-      const response = await employee.getEmployees(payload);
-
-      // ==========================================================
-      // 🧠 🛠️ [FIX LAYER]: แก้ไขการเจาะเข้าเลเยอร์ซองข้อมูล Axios + Response Wrapper
-      // ==========================================================
-      // ส่องดูโครงสร้างจริง: response.data (ก้อนนอกสุด) -> .data (ห่อวัตถุหลักหลังบ้าน) -> .items
-      const actualServerPayload = response.data?.data ? response.data.data : response.data;
-
-      const rawItems = actualServerPayload?.items || [];
-      const serverTotalCount = actualServerPayload?.totalRecords || 0;
-
-      // Mapping ฟิลด์จาก PascalCase ให้เข้ากับไทป์ UI หน้าบ้าน
-      const mappedEmployees: Employee[] = rawItems.map((item: any) => ({
-        id: (item.id || item.Id || '').toString(),
-        code: item.code || item.Code || '',
-        // 🌟 ซ่อมแซมกรณีดึง fullName ออกมาแล้วเป็น null ให้ทำการประกอบ FirstName + LastName สดหน้างาน
-        fullName: item.fullName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'No Name',
-        department: item.department || item.Department || '-',
-        startDate: item.startDate ? new Date(item.startDate) : new Date(),
-        isActive: item.isActive !== undefined ? item.isActive : true,
-        phoneNumber: item.phoneNumber || item.PhoneNumber || '-',
-        resignationDate: item.resignationDate ? new Date(item.resignationDate) : null
-      }));
-
-      setPaginatedData({
-        items: mappedEmployees,
-        totalCount: serverTotalCount,
-        pageSize: queryParams.pageSize,
-        pageIndex: queryParams.pageIndex
-      });
-    } catch (error: any) {
-      console.error("Database connection failure:", error);
-      setErrorMessage(error.message || 'An unexpected error occurred while communicating with the C# .NET Core cluster.');
-      setShowErrorState(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchActiveDatabaseRecords();
-  }, [queryParams]);
-
-  const handleFilterChange = (key: string, value: any) => {
-    setQueryParams((prev) => ({
-      ...prev,
-      [key]: value,
-      pageIndex: 0 // บังคับคืนหน้าแรกเสมอเวลากดกรองค้นหาตัวแปรใหม่
+    // 2. Map payload back to Employee UI Interface
+    const mappedItems: Employee[] = rawItems.map((item: any) => ({
+      id: (item.id || item.Id || '').toString(),
+      code: item.code || item.Code || '',
+      fullName: item.fullName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'No Name',
+      department: item.department || item.Department || '-',
+      startDate: item.startDate ? new Date(item.startDate) : new Date(),
+      isActive: item.isActive !== undefined ? item.isActive : true,
+      phoneNumber: item.phoneNumber || item.PhoneNumber || '-',
+      resignationDate: item.resignationDate ? new Date(item.resignationDate) : null
     }));
+
+    return {
+      items: mappedItems,
+      totalCount: serverPayload?.totalRecords || 0,
+      pageSize: params.pageSize,
+      pageIndex: params.pageIndex
+    };
   };
 
-  const handleClearFilters = () => {
-    setQueryParams((prev) => ({
-      ...prev,
-      code: '',
-      firstName: '',
-      lastName: '',
-      department: '',
-      status: '',
-      pageIndex: 0
-    }));
+  // Callback to calculate KPI Metrics when DataTable finishes loading new data
+  const handleDataLoaded = (items: Employee[], totalCount: number) => {
+    const activeCount = items.filter((e) => e.isActive).length;
+    const currentYearTime = new Date().getTime();
+    const newHiresCount = items.filter((e) => {
+      const diffTime = Math.abs(currentYearTime - e.startDate.getTime());
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) <= 365;
+    }).length;
+
+    setPageStats({
+      visibleCount: items.length,
+      activeCount,
+      newHiresCount,
+      totalCount
+    });
   };
 
-  // คำนวณ Metric Card แบบเซฟโซน
-  const visibleCount = paginatedData.items.length;
-  const activeCount = paginatedData.items.filter((e) => e.isActive === true).length;
-  const activePercentage = visibleCount > 0 ? Math.round((activeCount / visibleCount) * 100) : 0;
-
-  // คำนวณสถิติเด็กใหม่โดยเทียบเวลาแบบ Dynamic (ทำงานน้อยกว่า 365 วันนับจากวันเริ่มงาน)
-  const currentYearTime = new Date().getTime();
-  const newHiresCount = paginatedData.items.filter((e) => {
-    const diffTime = Math.abs(currentYearTime - e.startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 365;
-  }).length;
+  const activePercentage = pageStats.visibleCount > 0 ? Math.round((pageStats.activeCount / pageStats.visibleCount) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -328,37 +220,34 @@ export function EmployeeDashboardPage() {
         <CustomCard
           icon={<Users className="h-5 w-5" />}
           title="Total in Page"
-          value={<>{visibleCount} <span className="text-xs text-slate-400 font-normal">rows</span></>}
+          value={<>{pageStats.visibleCount} <span className="text-xs text-slate-400 font-normal">rows</span></>}
           iconBgClass="bg-slate-50 border-slate-100"
           iconTextClass="text-slate-700"
           gradientFrom="from-white"
           gradientTo="to-slate-50/50"
         />
-
         <CustomCard
           icon={<UserCheck className="h-5 w-5" />}
           title="Page Active Ratio"
-          value={<>{activeCount} <span className="text-xs text-emerald-600 font-bold">({activePercentage}%)</span></>}
+          value={<>{pageStats.activeCount} <span className="text-xs text-emerald-600 font-bold">({activePercentage}%)</span></>}
           iconBgClass="bg-emerald-50 border-emerald-100"
           iconTextClass="text-emerald-600"
           gradientFrom="from-white"
           gradientTo="to-emerald-50/20"
         />
-
         <CustomCard
           icon={<CalendarCheck className="h-5 w-5" />}
           title="Database Total"
-          value={<>{paginatedData.totalCount} <span className="text-xs text-amber-600 font-bold">records</span></>}
+          value={<>{pageStats.totalCount} <span className="text-xs text-amber-600 font-bold">records</span></>}
           iconBgClass="bg-amber-50 border-amber-100"
           iconTextClass="text-amber-600"
           gradientFrom="from-white"
           gradientTo="to-amber-50/20"
         />
-
         <CustomCard
           icon={<Briefcase className="h-5 w-5" />}
           title="Junior Staff (Page)"
-          value={<>{newHiresCount} <span className="text-xs text-blue-600 font-normal">staff</span></>}
+          value={<>{pageStats.newHiresCount} <span className="text-xs text-blue-600 font-normal">staff</span></>}
           iconBgClass="bg-blue-50 border-blue-100"
           iconTextClass="text-blue-600"
           gradientFrom="from-white"
@@ -366,43 +255,20 @@ export function EmployeeDashboardPage() {
         />
       </div>
 
-      {/* Integrated Unified SQL API State Display Badge */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-slate-900 text-slate-300 p-3 px-4.5 rounded-lg border border-slate-800 shadow-xs font-mono text-[10px] md:text-xs">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal className="h-4 w-4 text-emerald-400" />
-          <span>
-            <strong className="text-emerald-400 uppercase">C# API ROUTE PAYLOAD:</strong>{' '}
-            {`/api/employees?code=${queryParams.code}&firstName=${queryParams.firstName}&lastName=${queryParams.lastName}&department=${queryParams.department}`}
-          </span>
-        </div>
-        <div className="text-[10px] text-slate-400 border border-slate-800 px-2 py-0.5 rounded bg-slate-950 font-bold">
-          Entity Framework 10
-        </div>
-      </div>
-
       {/* Global generic DataTable Instance */}
       <DataTable
         columns={columns}
-        paginatedData={paginatedData}
-        filterOptions={FILTER_CONFIGURATION}
-        filters={queryParams}
-        onFilterChange={handleFilterChange}
-        onClearFilters={handleClearFilters}
+        fetchData={fetchEmployees}
+        onDataLoaded={handleDataLoaded}
         filterslot={4}
-        onPageChange={(index) => {
-          setQueryParams((prev) => ({ ...prev, pageIndex: index }));
-        }}
-        onPageSizeChange={(size) => {
-          setQueryParams((prev) => ({ ...prev, pageSize: size, pageIndex: 0 }));
-        }}
-        isLoading={isLoading}
-        error={showErrorState ? errorMessage : null}
-        onRetry={() => {
-          fetchActiveDatabaseRecords();
-        }}
+        // extraFilterOptions are filters we want in the UI bar, but don't correspond to visual columns
+        extraFilterOptions={[
+          { key: 'firstName', label: 'First Name', type: 'string', placeholder: 'Search first name...' },
+          { key: 'lastName', label: 'Last Name', type: 'string', placeholder: 'Search last name...' }
+        ]}
       />
 
-      {/* DETAIL VIEW MODAL */}
+      {/* DETAIL VIEW MODAL - Unchanged */}
       {selectedEmployeeForDetail && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 animate-in fade-in duration-100">
           <div className="bg-white border border-slate-200 rounded-xl shadow-xl max-w-md w-full overflow-hidden text-left animate-in zoom-in-95 duration-150 m-4">
@@ -459,7 +325,6 @@ export function EmployeeDashboardPage() {
                     </Badge>
                   </div>
                 </div>
-                {/* 🌟 แสดงวันลาออกเพิ่มเติมหากมีข้อมูลพนักงานที่ลาออกแล้ว */}
                 {!selectedEmployeeForDetail.isActive && selectedEmployeeForDetail.resignationDate && (
                   <div className="col-span-2 pt-2 border-t border-slate-50">
                     <span className="text-red-400 uppercase font-extrabold text-[10px]">Resignation Date</span>
