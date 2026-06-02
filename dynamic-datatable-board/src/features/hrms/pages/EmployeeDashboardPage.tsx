@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   CalendarCheck,
@@ -30,39 +30,64 @@ export interface Employee {
   resignationDate?: Date | null;
   employmentType?: string;
   salary?: number;
+  departmentId?: string;
+  roleId?: string;
 }
 
 export function EmployeeDashboardPage() {
   // States for row actions and KPI metrics
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
-  
+
   // Dialog/Modal State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'view' | 'edit'>('create');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  
+
   // Reload counter to force table re-fetch
   const [refreshCounter, setRefreshCounter] = useState(0);
 
-  // Stats purely for rendering the KPI metric cards at the top
-  const [pageStats, setPageStats] = useState({ visibleCount: 0, activeCount: 0, newHiresCount: 0, totalCount: 0 });
 
-  // Tanstack Table structural column definitions WITH embedded filters
+
+  // Global DB-wide statistics
+  const [globalStats, setGlobalStats] = useState({ totalCount: 0, activeCount: 0, newHiresCount: 0 });
+
+  useEffect(() => {
+    const fetchGlobalStats = async () => {
+      try {
+        const response = await employee.getEmployeeStats();
+        const payload = response.data?.data ? response.data.data : response.data;
+        if (payload) {
+          setGlobalStats({
+            totalCount: payload.totalCount || 0,
+            activeCount: payload.activeCount || 0,
+            newHiresCount: payload.newHiresCount || 0
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load global employee stats:', error);
+      }
+    };
+    fetchGlobalStats();
+  }, [refreshCounter]);
+
   const columns: DataTableColumnDef<Employee>[] = [
     {
       accessorKey: 'code',
-      header: 'Employee Code',
-      isGlobalFilter: true, // Adds to top DataFilterBar
+      header: 'Code',
+      isGlobalFilter: true,
+      filterablebar: true,
       filterType: 'string',
       filterPlaceholder: 'Search code...',
       cell: ({ row }) => (
-        <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/50">
+        <span className="font-mono font-bold text-slate-800 bg-slate-150 px-2.5 py-1 rounded-md border border-slate-200/50">
           {row.original.code}
         </span>
       )
     },
     {
       accessorKey: 'fullName',
+      header: 'Name',
+      filterablebar: true,
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-full bg-slate-900/5 text-slate-700 flex items-center justify-center font-bold text-xs select-none">
@@ -73,14 +98,15 @@ export function EmployeeDashboardPage() {
       )
     },
     {
-      accessorKey: 'department',
+      accessorKey: 'departmentId',
       header: 'Department',
-      isGlobalFilter: true, // Auto-generates dropdown filter
+      isGlobalFilter: true,
+      filterablebar: true,
       filterType: 'select',
       filterPlaceholder: 'All Departments',
-      filterApiEndpoint: '/api/departments',
-      filterTextProperty: 'deptTitle',
-      filterValueProperty: 'deptId',
+      filterApiEndpoint: 'api/Departments/dropdown',
+      filterTextProperty: 'name',
+      filterValueProperty: 'id',
       cell: ({ row }) => (
         <span className="text-slate-600 font-medium">{row.original.department}</span>
       )
@@ -177,13 +203,21 @@ export function EmployeeDashboardPage() {
   // 🚀 The Universal Fetch Bridge for DataTable
   const fetchEmployees = async (params: TableQueryParams) => {
     // 1. Map DataTable params to C# DTO directly
-    const payload = {
+    const payload: any = {
       pageIndex: params.pageIndex,
       pageSize: params.pageSize,
       sortBy: params.sortBy,
       sortDirection: params.sortDirection,
       ...params.filters // Injects code, firstName, lastName, department etc.
     };
+
+    // If departmentId is entered as text (non-numeric), map to department name parameter
+    if (payload.departmentId) {
+      if (isNaN(Number(payload.departmentId))) {
+        payload.department = payload.departmentId;
+        delete payload.departmentId;
+      }
+    }
 
     const response = await employee.getEmployees(payload);
     const serverPayload = response.data?.data ? response.data.data : response.data;
@@ -200,7 +234,9 @@ export function EmployeeDashboardPage() {
       phoneNumber: item.phoneNumber || item.PhoneNumber || '-',
       resignationDate: item.resignationDate ? new Date(item.resignationDate) : null,
       employmentType: item.employmentType || 'Full-time',
-      salary: item.salary || 0
+      salary: item.salary || 0,
+      departmentId: (item.departmentId || item.DepartmentId || '').toString(),
+      roleId: (item.roleId || item.RoleId || '').toString(),
     }));
 
     return {
@@ -211,37 +247,32 @@ export function EmployeeDashboardPage() {
     };
   };
 
-  // Callback to calculate KPI Metrics when DataTable finishes loading new data
-  const handleDataLoaded = (items: Employee[], totalCount: number) => {
-    const activeCount = items.filter((e) => e.isActive).length;
-    const currentYearTime = new Date().getTime();
-    const newHiresCount = items.filter((e) => {
-      const diffTime = Math.abs(currentYearTime - e.startDate.getTime());
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) <= 365;
-    }).length;
 
-    setPageStats({
-      visibleCount: items.length,
-      activeCount,
-      newHiresCount,
-      totalCount
-    });
-  };
 
   // Handles Dialog Submission (Create/Update)
-  const handleSaveEmployee = async (formData: EmployeeFormData) => {
-    // In production, this calls a create or update endpoint.
-    // For now we mock the API submission success, then refresh the table.
-    console.log('Saving employee details:', formData);
-    
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  const handleSaveEmployee = async (formData: any) => {
+    const payload = {
+      ...formData,
+      departmentId: formData.departmentId ? Number(formData.departmentId) : null,
+      roleId: formData.roleId ? Number(formData.roleId) : null,
+      firstApproverId: formData.firstApproverId ? Number(formData.firstApproverId) : null,
+      secondApproverId: formData.secondApproverId ? Number(formData.secondApproverId) : null,
+      salary: formData.salary ? Number(formData.salary.replace(/,/g, '')) : null,
+      startDate: formData.startDate || null,
+      endDate: formData.endDate || null,
+    };
+
+    if (formData.id) {
+      await employee.updateEmployee(formData.id, payload);
+    } else {
+      await employee.createEmployee(payload);
+    }
 
     // Force data table refresh
     setRefreshCounter((prev) => prev + 1);
   };
 
-  const activePercentage = pageStats.visibleCount > 0 ? Math.round((pageStats.activeCount / pageStats.visibleCount) * 100) : 0;
+  const activePercentage = globalStats.totalCount > 0 ? Math.round((globalStats.activeCount / globalStats.totalCount) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -249,33 +280,27 @@ export function EmployeeDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight">
-            Employee Administration
+            Employee
           </h2>
-          <p className="text-xs text-slate-500 mt-1 leading-normal max-w-xl">
-            Control employee records, design filters dynamic, audit roles, and track active statuses synced directly against enterprise API logs.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <CustomButton
-            variant="primary"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => {
-              setSelectedEmployee(null);
-              setDialogMode('create');
-              setIsDialogOpen(true);
-            }}
-          >
-            Add Employee
-          </CustomButton>
         </div>
       </div>
-
+      <CustomButton
+        variant="primary"
+        leftIcon={<Plus className="h-4 w-4" />}
+        onClick={() => {
+          setSelectedEmployee(null);
+          setDialogMode('create');
+          setIsDialogOpen(true);
+        }}
+      >
+        Add Employee
+      </CustomButton>
       {/* KPI Metric Bento Boxes */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <CustomCard
           icon={<Users className="h-5 w-5" />}
-          title="Total in Page"
-          value={<>{pageStats.visibleCount} <span className="text-xs text-slate-400 font-normal">rows</span></>}
+          title="Total Employees"
+          value={<>{globalStats.totalCount} <span className="text-xs text-slate-400 font-normal">records</span></>}
           iconBgClass="bg-slate-50 border-slate-100"
           iconTextClass="text-slate-700"
           gradientFrom="from-white"
@@ -283,8 +308,8 @@ export function EmployeeDashboardPage() {
         />
         <CustomCard
           icon={<UserCheck className="h-5 w-5" />}
-          title="Page Active Ratio"
-          value={<>{pageStats.activeCount} <span className="text-xs text-emerald-600 font-bold">({activePercentage}%)</span></>}
+          title="Active Employees"
+          value={<>{globalStats.activeCount} <span className="text-xs text-slate-400 font-normal">active</span></>}
           iconBgClass="bg-emerald-50 border-emerald-100"
           iconTextClass="text-emerald-600"
           gradientFrom="from-white"
@@ -292,8 +317,8 @@ export function EmployeeDashboardPage() {
         />
         <CustomCard
           icon={<CalendarCheck className="h-5 w-5" />}
-          title="Database Total"
-          value={<>{pageStats.totalCount} <span className="text-xs text-amber-600 font-bold">records</span></>}
+          title="Active Ratio"
+          value={<>{activePercentage}% <span className="text-xs text-amber-600 font-bold">ratio</span></>}
           iconBgClass="bg-amber-50 border-amber-100"
           iconTextClass="text-amber-600"
           gradientFrom="from-white"
@@ -301,8 +326,8 @@ export function EmployeeDashboardPage() {
         />
         <CustomCard
           icon={<Briefcase className="h-5 w-5" />}
-          title="Junior Staff (Page)"
-          value={<>{pageStats.newHiresCount} <span className="text-xs text-blue-600 font-normal">staff</span></>}
+          title="newHiresCount"
+          value={<>{globalStats.newHiresCount} <span className="text-xs text-blue-600 font-normal">staff</span></>}
           iconBgClass="bg-blue-50 border-blue-100"
           iconTextClass="text-blue-600"
           gradientFrom="from-white"
@@ -310,13 +335,12 @@ export function EmployeeDashboardPage() {
         />
       </div>
 
-      {/* Global generic DataTable Instance */}
       <DataTable
         key={refreshCounter}
         columns={columns}
         fetchData={fetchEmployees}
-        onDataLoaded={handleDataLoaded}
         filterslot={4}
+        filterableActive={true}
         // extraFilterOptions are filters we want in the UI bar, but don't correspond to visual columns
         extraFilterOptions={[
           { key: 'firstName', label: 'First Name', type: 'string', placeholder: 'Search first name...' },

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Edit3, User, Briefcase, DollarSign, Calendar as CalendarIcon, Phone } from 'lucide-react';
+import { X, Save, User, Briefcase } from 'lucide-react';
 import { CustomInput } from '@/components/custom/CustomInput';
 import { CustomDateTime } from '@/components/custom/CustomDateTime';
 import { CustomButton } from '@/components/custom/CustomButton';
+import { CustomDropdown } from '@/components/custom/CustomDropdown';
 import { Badge } from '@/components/ui/badge';
 import { TITLE_OPTIONS } from '@/constants/title';
 import { EMPLOYMENT_TYPE_OPTIONS } from '@/constants/employmentType';
@@ -15,7 +16,10 @@ export interface EmployeeFormData {
   lastName: string;
   startDate: string;
   endDate: string;
-  department: string;
+  departmentId: string;
+  roleId: string;
+  firstApproverId: string;
+  secondApproverId: string;
   phoneNumber: string;
   employmentType: string;
   salary: string;
@@ -44,7 +48,10 @@ export function EmployeeCreateViewUpdatePage({
     lastName: '',
     startDate: '',
     endDate: '',
-    department: '',
+    departmentId: '',
+    roleId: '',
+    firstApproverId: '',
+    secondApproverId: '',
     phoneNumber: '',
     employmentType: 'Full-time',
     salary: '',
@@ -57,10 +64,10 @@ export function EmployeeCreateViewUpdatePage({
   // Sync state with incoming employeeData when modal opens or updates
   useEffect(() => {
     if (employeeData && (mode === 'view' || mode === 'edit')) {
-      const startStr = employeeData.startDate instanceof Date 
+      const startStr = employeeData.startDate instanceof Date
         ? employeeData.startDate.toISOString().split('T')[0]
         : employeeData.startDate ? String(employeeData.startDate).split('T')[0] : '';
-      const endStr = employeeData.endDate instanceof Date 
+      const endStr = employeeData.endDate instanceof Date
         ? employeeData.endDate.toISOString().split('T')[0]
         : employeeData.endDate ? String(employeeData.endDate).split('T')[0] : '';
 
@@ -72,7 +79,10 @@ export function EmployeeCreateViewUpdatePage({
         lastName: employeeData.lastName || employeeData.fullName?.split(' ')[1] || '',
         startDate: startStr,
         endDate: endStr,
-        department: employeeData.department || '',
+        departmentId: employeeData.departmentId ? String(employeeData.departmentId) : '',
+        roleId: employeeData.roleId ? String(employeeData.roleId) : '',
+        firstApproverId: employeeData.firstApproverId ? String(employeeData.firstApproverId) : '',
+        secondApproverId: employeeData.secondApproverId ? String(employeeData.secondApproverId) : '',
         phoneNumber: employeeData.phoneNumber !== '-' ? employeeData.phoneNumber || '' : '',
         employmentType: employeeData.employmentType || 'Full-time',
         salary: employeeData.salary ? String(employeeData.salary) : '',
@@ -87,7 +97,10 @@ export function EmployeeCreateViewUpdatePage({
         lastName: '',
         startDate: new Date().toISOString().split('T')[0],
         endDate: '',
-        department: '',
+        departmentId: '',
+        roleId: '',
+        firstApproverId: '',
+        secondApproverId: '',
         phoneNumber: '',
         employmentType: 'Full-time',
         salary: '',
@@ -105,7 +118,9 @@ export function EmployeeCreateViewUpdatePage({
     if (!formData.firstName) newErrors.firstName = 'First Name is required';
     if (!formData.lastName) newErrors.lastName = 'Last Name is required';
     if (!formData.startDate) newErrors.startDate = 'Start date is required';
-    
+    if (!formData.departmentId) newErrors.departmentId = 'Department is required';
+    if (!formData.roleId) newErrors.roleId = 'Role is required';
+
     if (formData.salary && isNaN(Number(formData.salary.replace(/,/g, '')))) {
       newErrors.salary = 'Must be a valid number';
     }
@@ -136,7 +151,7 @@ export function EmployeeCreateViewUpdatePage({
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 animate-in fade-in duration-200">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden text-left animate-in zoom-in-95 duration-200 m-4 flex flex-col max-h-[90vh]">
-        
+
         {/* Header */}
         <div className="p-5 border-b border-slate-100 bg-slate-50/75 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -163,7 +178,7 @@ export function EmployeeCreateViewUpdatePage({
 
         {/* Content Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-          
+
           {/* Main Info Section */}
           <div className="space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5 flex items-center gap-2">
@@ -171,7 +186,7 @@ export function EmployeeCreateViewUpdatePage({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="w-full flex flex-col gap-1.5 text-left">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Title</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider select-none">Title</label>
                 <select
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -207,7 +222,7 @@ export function EmployeeCreateViewUpdatePage({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <CustomInput
-                label="Employee Code"
+                label="Code (Auto Generated can be edited)"
                 value={formData.code}
                 onChange={(val) => setFormData({ ...formData, code: val })}
                 error={errors.code}
@@ -230,18 +245,65 @@ export function EmployeeCreateViewUpdatePage({
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5 flex items-center gap-2">
               <Briefcase className="h-3.5 w-3.5" /> Employment Information
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <CustomInput
+
+            {/* Grid Row 1: Searchable Department & Role */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <CustomDropdown
                 label="Department"
-                value={formData.department}
-                onChange={(val) => setFormData({ ...formData, department: val })}
-                error={errors.department}
+                value={formData.departmentId}
+                onChange={(val) => setFormData({ ...formData, departmentId: val })}
+                apiEndpoint="api/Departments/dropdown"
+                textProperty="name"
+                valueProperty="id"
+                placeholder="Select Department"
+                error={errors.departmentId}
                 disabled={isView}
-                placeholder="HR, Engineering..."
               />
 
+              <CustomDropdown
+                label="Role"
+                value={formData.roleId}
+                onChange={(val) => setFormData({ ...formData, roleId: val })}
+                apiEndpoint="api/Roles/dropdown"
+                textProperty="name"
+                valueProperty="id"
+                placeholder="Select Role"
+                error={errors.roleId}
+                disabled={isView}
+              />
+            </div>
+
+            {/* Grid Row 1.5: Approvers Selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <CustomDropdown
+                label="First Approver"
+                value={formData.firstApproverId}
+                onChange={(val) => setFormData({ ...formData, firstApproverId: val })}
+                apiEndpoint="api/Employees/dropdown"
+                textProperty="fullName"
+                valueProperty="id"
+                placeholder="Select First Approver"
+                error={errors.firstApproverId}
+                disabled={isView}
+              />
+
+              <CustomDropdown
+                label="Second Approver"
+                value={formData.secondApproverId}
+                onChange={(val) => setFormData({ ...formData, secondApproverId: val })}
+                apiEndpoint="api/Employees/dropdown"
+                textProperty="fullName"
+                valueProperty="id"
+                placeholder="Select Second Approver"
+                error={errors.secondApproverId}
+                disabled={isView}
+              />
+            </div>
+
+            {/* Grid Row 2: Employment Type & Salary */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="w-full flex flex-col gap-1.5 text-left">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Employment Type</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider select-none">Employment Type</label>
                 <select
                   value={formData.employmentType}
                   onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}

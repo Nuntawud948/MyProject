@@ -10,3 +10,18 @@
     resignationDate?: string; // 👈 เพิ่มเข้ามาใหม่
     fullName: string;
 }
+
+export interface EmployeeRequest {
+    pageIndex: number;
+    pageSize: number;
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
+    code?: string;
+    firstName?: string;
+    lastName?: string;
+    department?: string;
+    departmentId?: number | string;
+    roleId?: number | string;
+    status?: string;
+    search?: string;
+}

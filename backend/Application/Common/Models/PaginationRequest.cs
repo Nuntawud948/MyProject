@@ -6,4 +6,5 @@ public class PaginationRequest
     public int PageSize { get; set; } = 10;
     public string? SortBy { get; set; }
     public string? SortDirection { get; set; } = "asc";
+    public string? Search { get; set; }
 }

@@ -20,6 +20,10 @@ public class EmployeeResponse
     public bool IsActive { get; set; } // แปลง bool เป็น "Active" / "Inactive"
     public string? PhoneNumber { get; set; } // 👈 เพิ่มเข้ามาใหม่
     public DateTime? ResignationDate { get; set; } // 👈 เพิ่มเข้ามาใหม่
+    public int? DepartmentId { get; set; }
+    public int? RoleId { get; set; }
+    public int? FirstApproverId { get; set; }
+    public int? SecondApproverId { get; set; }
 
  
    

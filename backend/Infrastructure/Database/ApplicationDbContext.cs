@@ -9,6 +9,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     // กำหนดตารางที่จะให้สร้างใน Database
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<BusinessUnit> BusinessUnits => Set<BusinessUnit>();
 
     public DbSet<UserAccount> UserAccounts { get; set; }
 
