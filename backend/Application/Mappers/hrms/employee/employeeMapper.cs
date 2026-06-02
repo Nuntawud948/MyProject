@@ -14,6 +14,7 @@ public partial class EmployeeMapper
     [MapProperty(nameof(Employee.WorkEmail), nameof(EmployeeResponse.Email))]
     [MapProperty(nameof(Employee.Role), nameof(EmployeeResponse.Position))]
     [MapProperty(nameof(Employee.EndDate), nameof(EmployeeResponse.ResignationDate))]
+
     public partial EmployeeResponse MapToResponse(Employee source);
 
     // Map List/Enumerable of Employees to list of EmployeeResponses

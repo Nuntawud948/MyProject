@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { employee } from '@/api/hrms/employee';
 import { CustomCard } from '@/components/custom/CustomCard';
 import { CustomButton } from '@/components/custom/CustomButton';
-import { EmployeeCreateViewUpdatePage, EmployeeFormData } from './employees/EmployeeCreateViewUpdatePage';
+import { EmployeeCreateViewUpdatePage } from './employees/EmployeeCreateViewUpdatePage';
 
 export interface Employee {
   id: string;

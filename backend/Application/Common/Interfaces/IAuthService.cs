@@ -10,4 +10,10 @@ public interface IAuthService
 
     // บริการสมัครสมาชิก (ถอดรหัสผ่านมาทำ Hash ความปลอดภัยสูง)
     Task<Response> RegisterAsync(LoginRequest request, string email, string role);
+
+    // บริการตรวจสอบรหัสผ่านว่าตรงกับ Hash หรือไม่
+    Task<Response<bool>> CheckPasswordAsync(string username, string password);
+
+    // บริการตั้งค่ารหัสผ่านใหม่ (Reset/Forgot Password)
+    Task<Response> ResetPasswordAsync(string username, string newPassword);
 }

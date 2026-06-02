@@ -17,9 +17,11 @@ public class AuthService(ApplicationDbContext context) : IAuthService
     public async Task<Response<TokenResponse>> LoginAsync(LoginRequest request)
     {
         // 🔍 1. ค้นหาบัญชีผู้ใช้
-        var account = await context.UserAccounts.FirstOrDefaultAsync(u =>
-            u.Username.ToLower() == request.Username.ToLower()
-        );
+        var account = await context.UserAccounts
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u =>
+                u.Username.ToLower() == request.Username.ToLower()
+            );
 
         if (account == null)
         {
@@ -77,7 +79,7 @@ public class AuthService(ApplicationDbContext context) : IAuthService
         {
             Subject = new ClaimsIdentity([
                 new Claim(ClaimTypes.Name, account.Username),
-                new Claim(ClaimTypes.Role, account.Role),
+                new Claim(ClaimTypes.Role, account.Role?.Code ?? "User"),
                 new Claim(ClaimTypes.Email, account.Email),
             ]),
             Expires = DateTime.UtcNow.AddHours(8),
@@ -94,7 +96,7 @@ public class AuthService(ApplicationDbContext context) : IAuthService
         {
             Token = tokenString,
             Username = account.Username,
-            Role = account.Role,
+            Role = account.Role?.Code ?? "User",
             ExpiresAt = tokenDescriptor.Expires.Value,
         };
 
@@ -121,12 +123,14 @@ public class AuthService(ApplicationDbContext context) : IAuthService
         string hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password, salt);
 
         // 3. ประกอบข้อมูลเตรียมยัดลงตู้เซฟ PostgreSQL
+        var dbRole = await context.Roles.FirstOrDefaultAsync(r => r.Code.ToLower() == role.ToLower());
+
         var newAccount = new UserAccount
         {
             Username = request.Username,
             PasswordHash = hashedPassword,
             Email = email,
-            Role = role,
+            RoleId = dbRole?.Id,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
         };
@@ -138,6 +142,55 @@ public class AuthService(ApplicationDbContext context) : IAuthService
         {
             IsSuccess = true,
             Message = "User account registered successfully within UMS schema.",
+        };
+    }
+
+    // 🔍 บริการตรวจสอบรหัสผ่านว่าตรงกับ Hash หรือไม่
+    public async Task<Response<bool>> CheckPasswordAsync(string username, string password)
+    {
+        var account = await context.UserAccounts.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+        if (account == null)
+        {
+            return new Response<bool>
+            {
+                IsSuccess = false,
+                Message = $"Username '{username}' does not exist.",
+                Data = false
+            };
+        }
+
+        bool isPasswordValid = BCrypt.Net.BCrypt.Verify(password, account.PasswordHash);
+        return new Response<bool>
+        {
+            IsSuccess = isPasswordValid,
+            Message = isPasswordValid ? "Password matches." : "Password does not match.",
+            Data = isPasswordValid
+        };
+    }
+
+    // 🔑 บริการตั้งค่ารหัสผ่านใหม่ (Reset/Forgot Password)
+    public async Task<Response> ResetPasswordAsync(string username, string newPassword)
+    {
+        var account = await context.UserAccounts.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+        if (account == null)
+        {
+            return new Response
+            {
+                IsSuccess = false,
+                Message = $"Username '{username}' does not exist."
+            };
+        }
+
+        string salt = BCrypt.Net.BCrypt.GenerateSalt(12);
+        string hashedPassword = BCrypt.Net.BCrypt.HashPassword(newPassword, salt);
+
+        account.PasswordHash = hashedPassword;
+        await context.SaveChangesAsync();
+
+        return new Response
+        {
+            IsSuccess = true,
+            Message = "Password has been successfully updated/reset."
         };
     }
 }

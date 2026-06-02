@@ -35,4 +35,28 @@ public class AuthController(IAuthService authService) : ControllerBase
         }
         return Ok(response);
     }
+
+    // 🔍 [POST] /api/auth/check-password -> สำหรับเช็คความถูกต้องของรหัสผ่านกับ PasswordHash
+    [HttpPost("check-password")]
+    public async Task<IActionResult> CheckPassword([FromBody] LoginRequest request)
+    {
+        var response = await authService.CheckPasswordAsync(request.Username, request.Password);
+        if (!response.IsSuccess)
+        {
+            return BadRequest(response);
+        }
+        return Ok(response);
+    }
+
+    // 🔑 [POST] /api/auth/reset-password -> สำหรับตั้งรหัสผ่านใหม่ (Forgot Password)
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromQuery] string username, [FromQuery] string newPassword)
+    {
+        var response = await authService.ResetPasswordAsync(username, newPassword);
+        if (!response.IsSuccess)
+        {
+            return BadRequest(response);
+        }
+        return Ok(response);
+    }
 }
