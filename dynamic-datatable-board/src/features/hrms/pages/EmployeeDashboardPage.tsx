@@ -228,7 +228,7 @@ export function EmployeeDashboardPage() {
       id: (item.id || item.Id || '').toString(),
       code: item.code || item.Code || '',
       fullName: item.fullName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'No Name',
-      department: item.department || item.Department || '-',
+      departmentName: item.departmentName || item.DepartmentName || item.department || item.Department || '-',
       startDate: item.startDate ? new Date(item.startDate) : new Date(),
       isActive: item.isActive !== undefined ? item.isActive : true,
       phoneNumber: item.phoneNumber || item.PhoneNumber || '-',
