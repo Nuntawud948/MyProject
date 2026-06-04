@@ -22,7 +22,7 @@ builder.Services.AddCors(options =>
             // ใส่ URL ทั้งหมดที่อนุญาตให้ยิง API เข้ามาได้
             policy.WithOrigins(
                     "http://localhost:5173",             // 1. URL ตอนคุณรันเทสบนเครื่อง (Local)
-                    "https://myproject-xxxx.vercel.app"  // 2. URL โดเมนจริงของ Vercel (Production) รอได้ URL จริงค่อยมาแก้ตรงนี้
+                    "https://myproject-frontend-eight.vercel.app"  // 2. URL โดเมนจริงของ Vercel (Production) รอได้ URL จริงค่อยมาแก้ตรงนี้
                 )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
