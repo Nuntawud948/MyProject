@@ -123,7 +123,7 @@ public class EmployeeService(
                     LastName = e.LastName,
                     FullName = e.FirstName + " " + e.LastName,
                     Email = e.WorkEmail ?? "",
-                    Department = e.Department != null ? e.Department.Name : "-",
+                    DepartmentName = e.Department != null ? e.Department.Name : "-",
                     Position = e.Role != null ? e.Role.Name : "-",
                     StartDate = e.StartDate ?? DateTime.UtcNow,
                     IsActive = e.IsActive,
@@ -211,6 +211,8 @@ public class EmployeeService(
             var db = context.Employees;  
 
             var emp = EmployeeMapper.Instance.MapToEntity(request);
+
+            emp.Name=emp.Title + emp.FirstName + emp.LastName;
 
             db.Add(emp);
             

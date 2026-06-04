@@ -12,7 +12,8 @@ public class EmployeeResponse
     public string FullName { get; set; } = null!;
 
     public string Email { get; set; } = null!;
-    public string Department { get; set; } = null!;
+    public string DepartmentName { get; set; } = null!;
+    public string RoleName { get; set; } = null!;
     public string Position { get; set; } = null!;
 
     public DateTime StartDate { get; set; } // 👈 เปลี่ยนจาก JoinedDate    public int ServiceYears { get; set; } // คำนวณอายุงานมาให้เลย
