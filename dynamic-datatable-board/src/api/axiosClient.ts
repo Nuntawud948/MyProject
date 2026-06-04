@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5272', // ให้ตรงกับพอร์ต C# ของคุณต้น
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5272', // ให้ตรงกับพอร์ต C# ของคุณต้น
     headers: {
         'Content-Type': 'application/json',
     },

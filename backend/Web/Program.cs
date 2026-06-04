@@ -10,19 +10,26 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. ตั้งค่า CORS (อนุญาตให้ React พอร์ต 5173 ยิง API เข้ามาได้)
+// 1. ตั้งชื่อ Policy ให้ชัดเจน (เก็บไว้ในตัวแปร จะได้ไม่พิมพ์ผิดตอนเรียกใช้)
+var AllowFrontendPolicy = "AllowFrontend";
+
+// 2. ลงทะเบียน CORS ใน Service Container แค่ครั้งเดียวพอ
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(
-        "AllowFrontend",
+    options.AddPolicy(name: AllowFrontendPolicy,
         policy =>
-            policy
-                .WithOrigins("http://localhost:3000")
+        {
+            // ใส่ URL ทั้งหมดที่อนุญาตให้ยิง API เข้ามาได้
+            policy.WithOrigins(
+                    "http://localhost:5173",             // 1. URL ตอนคุณรันเทสบนเครื่อง (Local)
+                    "https://myproject-xxxx.vercel.app"  // 2. URL โดเมนจริงของ Vercel (Production) รอได้ URL จริงค่อยมาแก้ตรงนี้
+                )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .AllowCredentials()
-    );
+                .AllowCredentials(); 
+        });
 });
+
 
 // 2. เชื่อมต่อ PostgreSQL และบังคับให้ตาราง History อยู่ที่ public schema
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -63,7 +70,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // เปิดใช้งาน CORS
-app.UseCors("AllowFrontend");
+app.UseCors(AllowFrontendPolicy);
 
 app.UseAuthorization();
 app.MapControllers();
