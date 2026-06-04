@@ -85,7 +85,7 @@ export function EmployeeDashboardPage() {
       )
     },
     {
-      accessorKey: 'fullName',
+      accessorKey: 'name',
       header: 'Name',
       filterablebar: true,
       cell: ({ row }) => (
