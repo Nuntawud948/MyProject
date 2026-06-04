@@ -13,22 +13,21 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. ตั้งชื่อ Policy ให้ชัดเจน (เก็บไว้ในตัวแปร จะได้ไม่พิมพ์ผิดตอนเรียกใช้)
 var AllowFrontendPolicy = "AllowFrontend";
 
-// 2. ลงทะเบียน CORS ใน Service Container แค่ครั้งเดียวพอ
+// 1. รวม CORS ไว้ที่เดียว และอ่านจาก Config (Development หรือ Environment Variables)
+// ใช้ ?? new string[] { } เพื่อป้องกันค่าว่าง
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new string[] { };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(name: AllowFrontendPolicy,
-        policy =>
-        {
-            // ใส่ URL ทั้งหมดที่อนุญาตให้ยิง API เข้ามาได้
-            policy.WithOrigins(
-                    "http://localhost:5173",             // 1. URL ตอนคุณรันเทสบนเครื่อง (Local)
-                    "https://myprojecttrialtest.vercel.app"  // 2. URL โดเมนจริงของ Vercel (Production) รอได้ URL จริงค่อยมาแก้ตรงนี้
-                )
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials(); 
-        });
+    options.AddPolicy("CorsPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // สำคัญถ้ามีการใช้ Auth/Cookies
+    });
 });
+
 
 
 // 2. เชื่อมต่อ PostgreSQL และบังคับให้ตาราง History อยู่ที่ public schema
@@ -70,7 +69,7 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 app.UseHttpsRedirection();
 
 // เปิดใช้งาน CORS
-app.UseCors(AllowFrontendPolicy);
+app.UseCors("CorsPolicy");
 
 app.UseAuthorization();
 app.MapControllers();
