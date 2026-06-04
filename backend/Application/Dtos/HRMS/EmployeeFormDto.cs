@@ -16,6 +16,7 @@ public class EmployeeFormDto
     public int? FirstApproverId { get; set; }
     public int? SecondApproverId { get; set; }
     public string? EmploymentType { get; set; }
+    public string? Phonenumber { get; set; }
     public decimal? Salary { get; set; }
     public string? WorkEmail { get; set; }
     public bool IsActive { get; set; } = true;
