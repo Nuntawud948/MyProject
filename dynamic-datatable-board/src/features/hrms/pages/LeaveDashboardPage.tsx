@@ -310,7 +310,7 @@ export function LeaveDashboardPage() {
         const userRole = localStorage.getItem('role') || '';
 
         // Determine if approval actions are applicable for current row
-        const needsFirstApproval = item.firstApprovalStatus === 'Pending' && item.status === 'Pending';
+        const needsFirstApproval = item.firstApprovalStatus === 'Pending' && item.status === 'Pending' && userRole === 'HR' ;
         const needsSecondApproval = item.firstApprovalStatus === 'Approved' && item.secondApprovalStatus === 'Pending' && item.status === 'Pending' && userRole === 'HR';
 
         return (

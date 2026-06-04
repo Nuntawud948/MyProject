@@ -5,6 +5,7 @@ import { CustomDropdown } from '@/components/custom/CustomDropdown';
 import { CustomDateTime } from '@/components/custom/CustomDateTime';
 import { leave } from '@/api/hrms/leave';
 import type { LeaveRequestDto, LeaveSimulateResponseDto } from '@/dto/hrms/leaveRequest';
+import type { LeaveBalanceDto } from '@/dto/hrms/leaveBalance';
 import { Badge } from '@/components/ui/badge';
 
 interface LeaveRequestFormModalProps {
@@ -38,6 +39,30 @@ export function LeaveRequestFormModal({
   const [simulation, setSimulation] = useState<LeaveSimulateResponseDto | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isOnBehalf, setIsOnBehalf] = useState(false);
+  const [balances, setBalances] = useState<LeaveBalanceDto[]>([]);
+  const [isLoadingBalances, setIsLoadingBalances] = useState(false);
+
+  // Fetch balances when employeeId changes
+  useEffect(() => {
+    if (isOpen && formData.employeeId) {
+      const fetchBalances = async () => {
+        setIsLoadingBalances(true);
+        try {
+          const res = await leave.getLeaveBalances(Number(formData.employeeId));
+          setBalances(res.data?.data || res.data || []);
+          console.log(balances);
+        } catch (err) {
+          console.error('Failed to fetch leave balances:', err);
+          setBalances([]);
+        } finally {
+          setIsLoadingBalances(false);
+        }
+      };
+      fetchBalances();
+    } else {
+      setBalances([]);
+    }
+  }, [formData.employeeId, isOpen]);
 
   // Load current employee from local storage if available for defaults
   useEffect(() => {
@@ -273,6 +298,34 @@ export function LeaveRequestFormModal({
                 disabled={isView}
               />
             </div>
+
+            {/* Leave Balances Status */}
+            {formData.employeeId && (
+              <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl space-y-2.5 animate-in fade-in duration-200">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
+                  📊 Leave Balances Status (โควตาวันลาคงเหลือ)
+                </span>
+                {isLoadingBalances ? (
+                  <div className="text-xs text-slate-400 animate-pulse py-1">Loading leave balances...</div>
+                ) : balances.length === 0 ? (
+                  <div className="text-xs text-slate-400 italic py-1">No leave balance data available.</div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {balances.map((bal) => (
+                      <div key={bal.id || bal.leaveTypeId} className="bg-white p-2.5 rounded-lg border border-slate-100/80 flex flex-col justify-between shadow-3xs">
+                        <span className="text-[11px] font-bold text-slate-700 truncate block">{bal.leaveTypeName}</span>
+                        <div className="mt-1 flex items-baseline justify-between animate-in fade-in duration-300">
+                          <span className="text-[10px] font-semibold text-slate-400">Remaining</span>
+                          <span className={`text-xs font-bold font-mono ${bal.remainingHours > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                            {bal.remainingHours} hrs <span className="text-[10px] text-slate-450 font-normal font-sans">({(bal.remainingHours / 8).toFixed(1)}d)</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Time Slot Duration Segment */}
             <div className="w-full flex flex-col gap-1.5 text-left">
