@@ -23,7 +23,7 @@ export interface Employee {
   id: string;
   code: string;
   fullName: string;
-  department: string;
+  departmentName: string;
   startDate: Date;
   isActive: boolean;
   phoneNumber?: string;
@@ -31,7 +31,7 @@ export interface Employee {
   employmentType?: string;
   salary?: number;
   departmentId?: string;
-  roleId?: string;
+  roleName?: string;
 }
 
 export function EmployeeDashboardPage() {
@@ -98,7 +98,7 @@ export function EmployeeDashboardPage() {
       )
     },
     {
-      accessorKey: 'departmentId',
+      accessorKey: 'departmentName',
       header: 'Department',
       isGlobalFilter: true,
       filterablebar: true,
@@ -108,7 +108,7 @@ export function EmployeeDashboardPage() {
       filterTextProperty: 'name',
       filterValueProperty: 'id',
       cell: ({ row }) => (
-        <span className="text-slate-600 font-medium">{row.original.department}</span>
+        <span className="text-slate-600 font-medium">{row.original.departmentName}</span>
       )
     },
     {
