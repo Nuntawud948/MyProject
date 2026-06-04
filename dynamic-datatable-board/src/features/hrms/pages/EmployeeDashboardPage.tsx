@@ -98,7 +98,7 @@ export function EmployeeDashboardPage() {
       )
     },
     {
-      accessorKey: 'departmentName',
+      accessorKey: 'departmentId',
       header: 'Department',
       isGlobalFilter: true,
       filterablebar: true,
