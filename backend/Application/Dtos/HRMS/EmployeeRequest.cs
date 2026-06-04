@@ -12,4 +12,5 @@ public class EmployeeRequest : PaginationRequest
     public int? DepartmentId { get; set; }
     public int? RoleId { get; set; }
     public string? Status { get; set; }
+    public string? Name { get; set; }
 }

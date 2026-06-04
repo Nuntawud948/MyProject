@@ -19,6 +19,7 @@ export const employee = {
             roleId: params.roleId ? Number(params.roleId) : undefined,
             status: params.status || undefined,
             search: params.search || undefined,
+            name: params.name || undefined,
         };
 
         return await axiosClient.get('api/Employees', { params: backendPayload });

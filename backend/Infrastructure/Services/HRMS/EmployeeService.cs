@@ -34,6 +34,15 @@ public class EmployeeService(
             query = filterService.ApplyStringFilter(query, e => e.LastName, request.LastName);
             query = filterService.ApplyStringFilter(query, e => e.Code, request.Code);
 
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                var lowerName = request.Name.ToLower();
+                query = query.Where(e => 
+                    (e.FirstName != null && e.FirstName.ToLower().Contains(lowerName)) || 
+                    (e.LastName != null && e.LastName.ToLower().Contains(lowerName))
+                );
+            }
+
             if (request.DepartmentId.HasValue)
             {
                 query = query.Where(e => e.DepartmentId == request.DepartmentId.Value);

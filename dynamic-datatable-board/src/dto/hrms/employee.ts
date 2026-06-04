@@ -1,4 +1,4 @@
-﻿export interface EmployeeResponse {
+export interface EmployeeResponse {
     id: number;
     code: string;
     firstName: string;
@@ -24,4 +24,5 @@ export interface EmployeeRequest {
     roleId?: number | string;
     status?: string;
     search?: string;
+    name?: string;
 }

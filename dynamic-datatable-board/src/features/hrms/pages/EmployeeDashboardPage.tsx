@@ -88,6 +88,8 @@ export function EmployeeDashboardPage() {
       accessorKey: 'name',
       header: 'Name',
       filterablebar: true,
+      isGlobalFilter: true,
+      filterType: 'string',
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-full bg-slate-900/5 text-slate-700 flex items-center justify-center font-bold text-xs select-none">
@@ -208,16 +210,8 @@ export function EmployeeDashboardPage() {
       pageSize: params.pageSize,
       sortBy: params.sortBy,
       sortDirection: params.sortDirection,
-      ...params.filters // Injects code, firstName, lastName, department etc.
+      ...params.filters // Injects code, name, departmentId etc.
     };
-
-    // If departmentId is entered as text (non-numeric), map to department name parameter
-    if (payload.departmentId) {
-      if (isNaN(Number(payload.departmentId))) {
-        payload.department = payload.departmentId;
-        delete payload.departmentId;
-      }
-    }
 
     const response = await employee.getEmployees(payload);
     const serverPayload = response.data?.data ? response.data.data : response.data;

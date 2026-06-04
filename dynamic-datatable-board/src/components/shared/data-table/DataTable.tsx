@@ -42,6 +42,7 @@ import axiosClient from '../../../api/axiosClient';
 export interface TableQueryParams {
   pageIndex: number;
   pageSize: number;
+  pageNumber: number; // 1-indexed page number for backend C# DTOs
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
   filters: Record<string, any>;
@@ -432,7 +433,8 @@ export function DataTable<TData, TValue>({
 
       const queryParams: TableQueryParams = {
         pageIndex: pagination.pageIndex,
-        pageSize: pagination.pageSize,
+        pageSize: pagination.pageSize || 10,
+        pageNumber: pagination.pageIndex + 1,
         sortBy: sorting.length > 0 ? sorting[0].id : undefined,
         sortDirection: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
         filters: activeFilters,
