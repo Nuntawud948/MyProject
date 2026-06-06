@@ -20,6 +20,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
 
+    // ── Attendance (Phase 1) ─────────────────────────────────────────────────
+    public DbSet<Attendance> Attendances => Set<Attendance>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -55,6 +58,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<LeaveType>().ToTable("LeaveTypes", "hrms");
         modelBuilder.Entity<LeaveBalance>().ToTable("LeaveBalances", "hrms");
         modelBuilder.Entity<LeaveRequest>().ToTable("LeaveRequests", "hrms");
+
+        // ── Attendance — Table Schema & Column Constraints ────────────────────
+        modelBuilder.Entity<Attendance>(entity =>
+        {
+            entity.ToTable("Attendances", "hrms");
+            entity.HasKey(a => a.Id);
+
+            // GPS coordinates stored at decimal(9,6) per spec
+            entity.Property(a => a.Latitude)
+                  .HasPrecision(9, 6);
+            entity.Property(a => a.Longitude)
+                  .HasPrecision(9, 6);
+
+            // Bounded string columns
+            entity.Property(a => a.CheckInMethod).HasMaxLength(10);
+            entity.Property(a => a.ImageUrl).HasMaxLength(500);
+            entity.Property(a => a.Reason).HasMaxLength(1000);
+        });
 
         // ── LeaveBalance Relationships (Restrict to avoid cascade cycles) ────
         modelBuilder.Entity<LeaveBalance>()

@@ -1,0 +1,46 @@
+namespace Domain.Entities.HRMS;
+
+/// <summary>
+/// Records a single attendance clock-in/out event for a mobile employee.
+/// Standalone entity (does not inherit BaseEntity) because PK is long and
+/// EmployeeId is a Guid sourced from the mobile identity token.
+/// </summary>
+public class Attendance
+{
+    // ── Primary Key ──────────────────────────────────────────────────────────
+    public long Id { get; set; }
+
+    // ── Employee Reference ───────────────────────────────────────────────────
+    /// <summary>Guid employee identifier supplied by the mobile JWT token.</summary>
+    public Guid EmployeeId { get; set; }
+
+    // ── Clock Timestamps ─────────────────────────────────────────────────────
+    public DateTimeOffset ClockInTime { get; set; }
+    public DateTimeOffset? ClockOutTime { get; set; }
+
+    // ── GPS Coordinates ──────────────────────────────────────────────────────
+    /// <summary>Precision 9, scale 6 (-999.999999 to 999.999999)</summary>
+    public decimal Latitude { get; set; }
+
+    /// <summary>Precision 9, scale 6 (-999.999999 to 999.999999)</summary>
+    public decimal Longitude { get; set; }
+
+    // ── Check-In Classification ──────────────────────────────────────────────
+    /// <summary>'Auto' (geofence) or 'Manual' (self-reported).</summary>
+    public string CheckInMethod { get; set; } = string.Empty;
+
+    // ── Manual Check-In Evidence ─────────────────────────────────────────────
+    /// <summary>Relative URL to uploaded photo. Required when CheckInMethod == "Manual".</summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>Employee-supplied reason. Required when CheckInMethod == "Manual".</summary>
+    public string? Reason { get; set; }
+
+    // ── Approval ─────────────────────────────────────────────────────────────
+    /// <summary>Default true for Auto; default false for Manual (requires manager review).</summary>
+    public bool IsApproved { get; set; }
+
+    // ── Audit Columns ────────────────────────────────────────────────────────
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+}

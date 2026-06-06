@@ -49,6 +49,10 @@ builder.Services.AddScoped<IPaginationService, PaginationService>();
 // ── Leave Management
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 
+// ── Attendance (Phase 1)
+builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddSingleton<IImageService, ImageService>();
+
 // ลงทะเบียนระบบสิทธิ์และยืนยันตัวตน UMS
 builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -67,6 +71,9 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 }
 
 app.UseHttpsRedirection();
+
+// Serve uploaded attendance images from wwwroot/uploads
+app.UseStaticFiles();
 
 // เปิดใช้งาน CORS
 app.UseCors("CorsPolicy");
