@@ -8,7 +8,7 @@ namespace Application.Dtos.HRMS;
 /// </summary>
 public class ClockInRequest
 {
-    public Guid EmployeeId { get; set; }
+    public int EmployeeId { get; set; }
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
 

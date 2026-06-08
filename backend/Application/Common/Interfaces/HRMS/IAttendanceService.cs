@@ -20,5 +20,5 @@ public interface IAttendanceService
     /// Returns today's attendance record for the given employee, or null if
     /// the employee has not clocked in yet today.
     /// </summary>
-    Task<Response<AttendanceResponse?>> GetTodayAttendanceAsync(Guid employeeId);
+    Task<Response<AttendanceResponse?>> GetTodayAttendanceAsync(int employeeId);
 }

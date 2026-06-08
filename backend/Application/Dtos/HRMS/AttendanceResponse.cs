@@ -6,7 +6,7 @@ namespace Application.Dtos.HRMS;
 public class AttendanceResponse
 {
     public long Id { get; set; }
-    public Guid EmployeeId { get; set; }
+    public int EmployeeId { get; set; }
 
     public DateTimeOffset ClockInTime { get; set; }
     public DateTimeOffset? ClockOutTime { get; set; }

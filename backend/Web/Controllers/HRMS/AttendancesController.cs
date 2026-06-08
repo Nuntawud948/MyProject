@@ -74,8 +74,8 @@ public class AttendancesController(
 
     /// <summary>Returns today's attendance record for the given employee (or null).</summary>
     // GET api/attendances/today/{employeeId}
-    [HttpGet("today/{employeeId:guid}")]
-    public async Task<IActionResult> GetToday(Guid employeeId)
+    [HttpGet("today/{employeeId:int}")]
+    public async Task<IActionResult> GetToday(int employeeId)
     {
         var result = await attendanceService.GetTodayAttendanceAsync(employeeId);
         return Ok(result);
@@ -93,7 +93,7 @@ public class AttendancesController(
 /// </summary>
 public class ClockInRequestDto
 {
-    [FromForm] public Guid     EmployeeId    { get; set; }
+    [FromForm] public int      EmployeeId    { get; set; }
     [FromForm] public decimal  Latitude      { get; set; }
     [FromForm] public decimal  Longitude     { get; set; }
     [FromForm] public string   CheckInMethod { get; set; } = string.Empty;

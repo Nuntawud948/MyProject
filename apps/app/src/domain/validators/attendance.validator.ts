@@ -22,7 +22,7 @@ export function validateClockIn(
 ): ValidationResult {
   const errors: string[] = [];
 
-  if (!request.employeeId || request.employeeId.trim().length === 0) {
+  if (!request.employeeId || String(request.employeeId).trim().length === 0) {
     errors.push('employeeId is required.');
   }
 

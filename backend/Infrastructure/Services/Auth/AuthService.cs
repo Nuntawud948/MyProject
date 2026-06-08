@@ -97,6 +97,7 @@ public class AuthService(ApplicationDbContext context) : IAuthService
             Token = tokenString,
             Username = account.Username,
             Role = account.Role?.Code ?? "User",
+            EmployeeId = account.EmployeeId?.ToString() ?? string.Empty,
             ExpiresAt = tokenDescriptor.Expires.Value,
         };
 

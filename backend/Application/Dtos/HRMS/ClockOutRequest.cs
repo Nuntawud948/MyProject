@@ -6,5 +6,5 @@ namespace Application.Dtos.HRMS;
 /// </summary>
 public class ClockOutRequest
 {
-    public Guid EmployeeId { get; set; }
+    public int EmployeeId { get; set; }
 }

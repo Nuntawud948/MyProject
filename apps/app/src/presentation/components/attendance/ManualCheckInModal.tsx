@@ -1,7 +1,7 @@
 /**
  * @file ManualCheckInModal.tsx
  * @description Modal for capturing a reason and photo on Manual check-in.
- * Opened from DashboardScreen when the user selects "Manual" check-in method.
+ * Styled to follow the professional WorkForce theme guidelines.
  */
 
 import React, { useState, useRef } from 'react';
@@ -18,9 +18,8 @@ import {
   Image,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import type { MobileImageFile } from '../../../data/dtos/attendance/clock-in.request';
-
-// ── Props ──────────────────────────────────────────────────────────────────
+import { MaterialIcons } from '@expo/vector-icons';
+import { Theme } from '../../theme';
 
 interface ManualCheckInModalProps {
   visible: boolean;
@@ -29,8 +28,6 @@ interface ManualCheckInModalProps {
   onConfirm: (reason: string, imageUri: string) => Promise<void>;
   onCancel: () => void;
 }
-
-// ── Component ──────────────────────────────────────────────────────────────
 
 export function ManualCheckInModal({
   visible,
@@ -53,9 +50,9 @@ export function ManualCheckInModal({
   const handleCapture = async () => {
     if (!cameraRef.current || !isCameraReady) return;
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (photo) setCapturedUri(photo.uri);
-    } catch {
+    } catch (err) {
       Alert.alert('Camera Error', 'Failed to capture photo. Please try again.');
     }
   };
@@ -74,10 +71,9 @@ export function ManualCheckInModal({
     setIsSubmitting(true);
     try {
       await onConfirm(reason.trim(), capturedUri);
-      // Reset state after success
       setReason('');
       setCapturedUri(null);
-    } catch {
+    } catch (err) {
       Alert.alert('Error', 'Check-in failed. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -99,18 +95,26 @@ export function ManualCheckInModal({
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <View style={styles.header}>
           <Text style={styles.title}>Manual Check-In</Text>
-          <Text style={styles.subtitle}>
-            📍 {latitude.toFixed(6)}, {longitude.toFixed(6)}
-          </Text>
+          <View style={styles.gpsBadge}>
+            <MaterialIcons name="gps-fixed" size={14} color={Theme.colors.onSurfaceVariant} />
+            <Text style={styles.subtitle}>
+              {latitude.toFixed(6)}, {longitude.toFixed(6)}
+            </Text>
+          </View>
         </View>
 
         {/* ── Camera / Preview ─────────────────────────────────────────────── */}
-        <View style={styles.cameraSection}>
+        <View style={[styles.cameraSection, Theme.elevation.level1]}>
           {capturedUri ? (
             <View style={styles.previewContainer}>
               <Image source={{ uri: capturedUri }} style={styles.preview} />
-              <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
-                <Text style={styles.retakeBtnText}>↩ Retake</Text>
+              <TouchableOpacity
+                style={styles.retakeBtn}
+                onPress={handleRetake}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="replay" size={16} color="#FFF" />
+                <Text style={styles.retakeBtnText}>Retake</Text>
               </TouchableOpacity>
             </View>
           ) : permission?.granted ? (
@@ -125,6 +129,7 @@ export function ManualCheckInModal({
                 style={styles.captureBtn}
                 onPress={handleCapture}
                 disabled={!isCameraReady}
+                activeOpacity={0.8}
               >
                 <View style={styles.captureBtnInner} />
               </TouchableOpacity>
@@ -133,9 +138,11 @@ export function ManualCheckInModal({
             <TouchableOpacity
               style={styles.permissionBtn}
               onPress={handleRequestPermission}
+              activeOpacity={0.7}
             >
+              <MaterialIcons name="photo-camera" size={32} color={Theme.colors.outline} style={{ marginBottom: 8 }} />
               <Text style={styles.permissionBtnText}>
-                📷 Allow Camera Access
+                Allow Camera Access
               </Text>
             </TouchableOpacity>
           )}
@@ -143,15 +150,15 @@ export function ManualCheckInModal({
 
         {/* ── Reason Input ─────────────────────────────────────────────────── */}
         <View style={styles.inputSection}>
-          <Text style={styles.label}>Reason *</Text>
+          <Text style={styles.label}>Reason for manual request *</Text>
           <TextInput
             style={styles.textInput}
             placeholder="Why are you checking in manually?"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={Theme.colors.onSurfaceVariant}
             value={reason}
             onChangeText={setReason}
             multiline
-            numberOfLines={3}
+            numberOfLines={4}
             maxLength={1000}
           />
           <Text style={styles.charCount}>{reason.length}/1000</Text>
@@ -163,9 +170,11 @@ export function ManualCheckInModal({
             style={styles.cancelBtn}
             onPress={onCancel}
             disabled={isSubmitting}
+            activeOpacity={0.8}
           >
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[
               styles.confirmBtn,
@@ -174,9 +183,10 @@ export function ManualCheckInModal({
             ]}
             onPress={handleConfirm}
             disabled={!capturedUri || !reason.trim() || isSubmitting}
+            activeOpacity={0.8}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={Theme.colors.onPrimary} size="small" />
             ) : (
               <Text style={styles.confirmBtnText}>Submit Check-In</Text>
             )}
@@ -187,67 +197,173 @@ export function ManualCheckInModal({
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
-  content: { padding: 24, paddingBottom: 48 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 24, fontWeight: '700', color: '#F1F5F9', marginBottom: 4 },
-  subtitle: { fontSize: 12, color: '#64748B', fontFamily: 'monospace' },
-
-  cameraSection: { marginBottom: 24 },
-  cameraWrapper: { borderRadius: 16, overflow: 'hidden', height: 280, position: 'relative' },
-  camera: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.background,
+  },
+  content: {
+    padding: Theme.spacing.marginMobile,
+    paddingBottom: 48,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: Theme.typography.headlineLgMobile.fontSize,
+    fontFamily: Theme.typography.headlineLgMobile.fontFamily,
+    fontWeight: '700',
+    color: Theme.colors.onSurface,
+    marginBottom: 6,
+  },
+  gpsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    opacity: 0.8,
+  },
+  subtitle: {
+    fontSize: Theme.typography.labelLg.fontSize,
+    fontFamily: Theme.typography.labelLg.fontFamily,
+    color: Theme.colors.onSurfaceVariant,
+    fontVariant: ['tabular-nums'],
+  },
+  cameraSection: {
+    marginBottom: 24,
+    borderRadius: Theme.rounded.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(193, 198, 214, 0.3)',
+  },
+  cameraWrapper: {
+    height: 280,
+    position: 'relative',
+  },
+  camera: {
+    flex: 1,
+  },
   captureBtn: {
-    position: 'absolute', bottom: 16,
+    position: 'absolute',
+    bottom: 16,
     alignSelf: 'center',
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   captureBtnInner: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#FFFFFF',
   },
-  previewContainer: { borderRadius: 16, overflow: 'hidden', height: 280 },
-  preview: { width: '100%', height: '100%' },
+  previewContainer: {
+    height: 280,
+    position: 'relative',
+  },
+  preview: {
+    width: '100%',
+    height: '100%',
+  },
   retakeBtn: {
-    position: 'absolute', bottom: 12, right: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(25, 28, 29, 0.75)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Theme.rounded.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  retakeBtnText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
+  retakeBtnText: {
+    color: '#FFF',
+    fontSize: Theme.typography.labelLg.fontSize,
+    fontFamily: Theme.typography.labelLg.fontFamily,
+    fontWeight: '600',
+  },
   permissionBtn: {
-    height: 120, borderRadius: 16,
-    backgroundColor: '#1E293B',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#334155', borderStyle: 'dashed',
+    height: 200,
+    backgroundColor: Theme.colors.surfaceContainerLowest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: Theme.colors.outline,
+    borderRadius: Theme.rounded.xl,
   },
-  permissionBtnText: { color: '#94A3B8', fontSize: 16 },
-
-  inputSection: { marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: '600', color: '#CBD5E1', marginBottom: 8 },
+  permissionBtnText: {
+    color: Theme.colors.onSurfaceVariant,
+    fontSize: Theme.typography.bodyLg.fontSize,
+    fontFamily: Theme.typography.bodyLg.fontFamily,
+    fontWeight: '500',
+  },
+  inputSection: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: Theme.typography.bodyLg.fontSize,
+    fontFamily: Theme.typography.bodyLg.fontFamily,
+    fontWeight: '600',
+    color: Theme.colors.onSurface,
+    marginBottom: 8,
+  },
   textInput: {
-    backgroundColor: '#1E293B', borderRadius: 12,
-    borderWidth: 1, borderColor: '#334155',
-    color: '#F1F5F9', fontSize: 15, padding: 14,
+    backgroundColor: Theme.colors.surfaceContainerLowest,
+    borderRadius: Theme.rounded.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.outline,
+    color: Theme.colors.onSurface,
+    fontSize: Theme.typography.bodyLg.fontSize,
+    fontFamily: Theme.typography.bodyLg.fontFamily,
+    padding: 14,
     textAlignVertical: 'top',
+    height: 100,
   },
-  charCount: { fontSize: 11, color: '#475569', textAlign: 'right', marginTop: 4 },
-
-  actions: { flexDirection: 'row', gap: 12 },
+  charCount: {
+    fontSize: Theme.typography.labelMd.fontSize,
+    fontFamily: Theme.typography.labelMd.fontFamily,
+    color: Theme.colors.onSurfaceVariant,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   cancelBtn: {
-    flex: 1, paddingVertical: 16, borderRadius: 12,
-    backgroundColor: '#1E293B',
+    flex: 1,
+    height: Theme.spacing.touchTarget,
+    borderRadius: Theme.rounded.full,
+    backgroundColor: Theme.colors.surfaceContainerLow,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  cancelBtnText: { color: '#94A3B8', fontWeight: '600', fontSize: 16 },
+  cancelBtnText: {
+    color: Theme.colors.onSurfaceVariant,
+    fontWeight: '600',
+    fontSize: Theme.typography.titleLg.fontSize,
+    fontFamily: Theme.typography.titleLg.fontFamily,
+  },
   confirmBtn: {
-    flex: 2, paddingVertical: 16, borderRadius: 12,
-    backgroundColor: '#6366F1',
+    flex: 2,
+    height: Theme.spacing.touchTarget,
+    borderRadius: Theme.rounded.full,
+    backgroundColor: Theme.colors.primary,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  confirmBtnDisabled: { backgroundColor: '#312E81', opacity: 0.5 },
-  confirmBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  confirmBtnDisabled: {
+    backgroundColor: Theme.colors.primary,
+    opacity: 0.4,
+  },
+  confirmBtnText: {
+    color: Theme.colors.onPrimary,
+    fontWeight: '600',
+    fontSize: Theme.typography.titleLg.fontSize,
+    fontFamily: Theme.typography.titleLg.fontFamily,
+  },
 });

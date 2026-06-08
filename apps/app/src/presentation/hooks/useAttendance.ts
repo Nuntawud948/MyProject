@@ -119,9 +119,11 @@ export function useAttendance(employeeId: string) {
           isLoading: false,
         }));
       } catch (err: any) {
+        console.error("DEBUG CLOCK IN ERROR DETAIL:", err?.response?.data || err);
+        const backendMsg = err?.response?.data?.Message ?? err?.response?.data?.message;
         setState(prev => ({
           ...prev,
-          error: err?.response?.data?.message ?? 'Clock-in failed.',
+          error: backendMsg ?? err?.message ?? 'Clock-in failed.',
           isLoading: false,
         }));
       }

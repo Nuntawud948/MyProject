@@ -5,7 +5,7 @@ using Infrastructure.Services.Auth;
 using Infrastructure.Services.Common;
 using Infrastructure.Services.Hrms;
 using Microsoft.EntityFrameworkCore;
-
+/*"applicationUrl": "http://localhost:5272",*/
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);

@@ -15,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ── Simulation HTML ──────────────────────────────────────────────────────────
 const SIMULATION_HTML = `
@@ -558,9 +559,10 @@ interface SimulationScreenProps {
 export function SimulationScreen({ onClose }: SimulationScreenProps) {
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       {/* Header bar */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -610,7 +612,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#0F172A',
-    paddingTop: Platform.OS === 'ios' ? 44 : 0,
   },
   header: {
     flexDirection: 'row',

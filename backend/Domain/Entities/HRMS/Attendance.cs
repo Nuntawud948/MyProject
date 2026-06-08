@@ -1,9 +1,9 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Domain.Entities.HRMS;
 
 /// <summary>
 /// Records a single attendance clock-in/out event for a mobile employee.
-/// Standalone entity (does not inherit BaseEntity) because PK is long and
-/// EmployeeId is a Guid sourced from the mobile identity token.
 /// </summary>
 public class Attendance
 {
@@ -11,8 +11,10 @@ public class Attendance
     public long Id { get; set; }
 
     // ── Employee Reference ───────────────────────────────────────────────────
-    /// <summary>Guid employee identifier supplied by the mobile JWT token.</summary>
-    public Guid EmployeeId { get; set; }
+    public int EmployeeId { get; set; }
+    
+    [ForeignKey(nameof(EmployeeId))]
+    public Employee? Employee { get; set; }
 
     // ── Clock Timestamps ─────────────────────────────────────────────────────
     public DateTimeOffset ClockInTime { get; set; }

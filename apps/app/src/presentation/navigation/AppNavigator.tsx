@@ -9,7 +9,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
-import { useAuth } from '../hooks/useAuth';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { SimulationScreen } from '../screens/SimulationScreen';
@@ -20,9 +20,18 @@ export type AuthStackParamList = {
   Login: undefined;
 };
 
+import { ApplyForLeave } from '../screens/ApplyForLeave';
+import { ScheduleScreen } from '../screens/ScheduleScreen';
+import { LeaveDetailsScreen } from '../screens/LeaveDetailsScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
+
 export type AppStackParamList = {
   Dashboard: undefined;
   Simulation: undefined;
+  ApplyForLeave: undefined;
+  Schedule: undefined;
+  LeaveDetails: undefined;
+  Profile: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -43,13 +52,17 @@ function AppNavigatorInner() {
     <AppStack.Navigator screenOptions={{ headerShown: false }}>
       <AppStack.Screen name="Dashboard" component={DashboardScreen} />
       <AppStack.Screen name="Simulation" component={SimulationScreen} />
+      <AppStack.Screen name="ApplyForLeave" component={ApplyForLeave} />
+      <AppStack.Screen name="Schedule" component={ScheduleScreen} />
+      <AppStack.Screen name="LeaveDetails" component={LeaveDetailsScreen} />
+      <AppStack.Screen name="Profile" component={ProfileScreen} />
     </AppStack.Navigator>
   );
 }
 
-// ── Root Navigator ────────────────────────────────────────────────────────────
+// ── Root Navigator Inner ──────────────────────────────────────────────────────
 
-export function AppNavigator() {
+function AppNavigatorContent() {
   const { isAuthenticated, isLoading, restoreSession } = useAuth();
 
   useEffect(() => {
@@ -68,6 +81,16 @@ export function AppNavigator() {
     <NavigationContainer>
       {isAuthenticated ? <AppNavigatorInner /> : <AuthNavigator />}
     </NavigationContainer>
+  );
+}
+
+// ── Root Navigator ────────────────────────────────────────────────────────────
+
+export function AppNavigator() {
+  return (
+    <AuthProvider>
+      <AppNavigatorContent />
+    </AuthProvider>
   );
 }
 

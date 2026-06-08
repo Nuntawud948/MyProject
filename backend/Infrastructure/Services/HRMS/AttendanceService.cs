@@ -110,7 +110,7 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
 
     // ── Today's Status ───────────────────────────────────────────────────────
 
-    public async Task<Response<AttendanceResponse?>> GetTodayAttendanceAsync(Guid employeeId)
+    public async Task<Response<AttendanceResponse?>> GetTodayAttendanceAsync(int employeeId)
     {
         try
         {
