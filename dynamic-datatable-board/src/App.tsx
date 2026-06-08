@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { MainLayout } from './components/layouts/MainLayout';
 import { EmployeeDashboardPage } from './features/hrms/pages/EmployeeDashboardPage';
 import { LeaveDashboardPage } from './features/hrms/pages/LeaveDashboardPage';
+import { CompanyHolidayDashboardPage } from './features/hrms/pages/CompanyHolidayDashboardPage';
 import { RoleManagementPage } from './features/setup/pages/RoleManagementPage';
 import LoginPage from './features/auth/pages/LoginPage';
 import ProtectedRoute from './components/shared/data-table/ProtectedRoute';
@@ -112,6 +113,8 @@ export default function App() {
             <Route path="/hrms/employees" element={<EmployeeDashboardPage />} />
 
             <Route path="/hrms/leaves" element={<LeaveDashboardPage />} />
+
+            <Route path="/hrms/company-holidays" element={<CompanyHolidayDashboardPage />} />
 
             <Route path="/hrms/attendance" element={
               <DummyPlaceholder

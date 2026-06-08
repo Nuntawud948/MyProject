@@ -46,6 +46,11 @@ export function Sidebar() {
             <span>Leave Management</span>
           </Link>
 
+          <Link to="/hrms/company-holidays" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive('/hrms/company-holidays') ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}`}>
+            <Calendar size={16} className="text-blue-400" />
+            <span>Company Holidays</span>
+          </Link>
+
           <Link to="/hrms/attendance" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive('/hrms/attendance') ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}`}>
             <Clock size={16} />
             <span>Attendance Ledger</span>

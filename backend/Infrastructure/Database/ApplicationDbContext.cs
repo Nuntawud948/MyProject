@@ -22,6 +22,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     // ── Attendance (Phase 1) ─────────────────────────────────────────────────
     public DbSet<Attendance> Attendances => Set<Attendance>();
+    public DbSet<CompanyHoliday> CompanyHolidays => Set<CompanyHoliday>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,6 +35,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<Department>().ToTable("Departments", "hrms");
         modelBuilder.Entity<Role>().ToTable("Roles", "hrms");
         modelBuilder.Entity<BusinessUnit>().ToTable("BusinessUnits", "hrms");
+        modelBuilder.Entity<CompanyHoliday>(entity =>
+        {
+            entity.ToTable("CompanyHolidays", "hrms");
+            entity.Property(h => h.Description).HasMaxLength(500);
+            entity.HasIndex(h => h.Year);
+        });
 
         modelBuilder.Entity<UserAccount>().ToTable("UserAccounts", "ums");
 
@@ -116,3 +123,4 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+

@@ -51,6 +51,7 @@ builder.Services.AddScoped<ILeaveService, LeaveService>();
 
 // ── Attendance (Phase 1)
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<ICompanyHolidayService, CompanyHolidayService>();
 builder.Services.AddSingleton<IImageService, ImageService>();
 
 // ลงทะเบียนระบบสิทธิ์และยืนยันตัวตน UMS

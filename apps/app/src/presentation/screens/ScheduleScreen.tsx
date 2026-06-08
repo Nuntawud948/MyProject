@@ -3,7 +3,7 @@
  * @description Screen displaying the employee's work schedule, holidays, leave periods, and upcoming events.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,26 +19,50 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { getCompanyHolidaysByYear } from '../../data/apis/companyHoliday.api';
+import { CompanyHolidayResponse } from '../../data/dtos/attendance/company-holiday.response';
 
 export function ScheduleScreen() {
   const navigation = useNavigation<any>();
   const { logout } = useAuth();
   const insets = useSafeAreaInsets();
-  const [currentYear, setCurrentYear] = useState(2024);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(6); // July (0-indexed)
+  const [holidays, setHolidays] = useState<CompanyHolidayResponse[]>([]);
+
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      try {
+        const data = await getCompanyHolidaysByYear(currentYear);
+        setHolidays(data.filter(h => h.isActive));
+      } catch (error) {
+        console.error('Failed to load holidays in ScheduleScreen:', error);
+      }
+    };
+    fetchHolidays();
+  }, [currentYear]);
 
   const userAvatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCMkTtQ960cOCGlzHxlU1cbnc8LaSU2dtSIzg0tH8Jid5W3ZFFu25NYOKQJAZzD0juYjZbkwSiTpli33CewD4Lsole7MW_eCBNFHcXjGtKQ5Xr4V9YIVyb5OkBaqX88W2-ch0-ZEtTtHehhhMbwL-Ak5KGagrR6LtuQGKwRhr1x5ly2GJhah3uIZrsuR6hQL3YshSsHVPrq07ccn2iwCEUxQG8yRmeUDinvz6VI7oiTcNdBt9mUFI_k0Dwcx5qyDsDl8r1D696BXqI';
 
-  // July 2024 starts on Monday (index 1)
-  const daysInJuly = 31;
-  const firstDayOffset = 1; // 1 offset empty box
+  // Dynamically calculate days in the selected month & year
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  // Dynamically calculate first day offset (0 = Sunday, 1 = Monday, etc.)
+  const getFirstDayOffset = (year: number, month: number) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const firstDayOffset = getFirstDayOffset(currentYear, currentMonth);
 
   // Create grid item list
   const daysGrid: (number | null)[] = [];
   for (let i = 0; i < firstDayOffset; i++) {
     daysGrid.push(null);
   }
-  for (let i = 1; i <= daysInJuly; i++) {
+  for (let i = 1; i <= daysInMonth; i++) {
     daysGrid.push(i);
   }
 
@@ -46,20 +70,28 @@ export function ScheduleScreen() {
     // Basic interaction feedback
   };
 
+  const getHolidayForDay = (day: number | null) => {
+    if (day === null) return null;
+    return holidays.find(h => {
+      const hDate = new Date(h.holidayDate);
+      return hDate.getFullYear() === currentYear && hDate.getMonth() === currentMonth && hDate.getDate() === day;
+    });
+  };
+
   const getDayStyle = (day: number | null) => {
     if (day === null) return null;
-    if (day === 4) return styles.holidayDay;
-    if (day === 15) return styles.leaveDayStart;
-    if (day >= 16 && day <= 18) return styles.leaveDayMiddle;
-    if (day === 19) return styles.leaveDayEnd;
-    if (day === 23) return styles.selectedDay;
+    if (getHolidayForDay(day)) return styles.holidayDay;
+    if (day === 15 && currentYear === 2024 && currentMonth === 6) return styles.leaveDayStart;
+    if (day >= 16 && day <= 18 && currentYear === 2024 && currentMonth === 6) return styles.leaveDayMiddle;
+    if (day === 19 && currentYear === 2024 && currentMonth === 6) return styles.leaveDayEnd;
+    if (day === 23 && currentYear === 2024 && currentMonth === 6) return styles.selectedDay;
     return null;
   };
 
   const getDayTextStyle = (day: number | null) => {
     if (day === null) return null;
-    if (day === 4) return styles.holidayDayText;
-    if (day >= 15 && day <= 19) return styles.leaveDayText;
+    if (getHolidayForDay(day)) return styles.holidayDayText;
+    if (day >= 15 && day <= 19 && currentYear === 2024 && currentMonth === 6) return styles.leaveDayText;
     return null;
   };
 
@@ -80,12 +112,34 @@ export function ScheduleScreen() {
         {/* ── Calendar Section ────────────────────────────────────────────── */}
         <View style={[styles.calendarCard, Theme.elevation.level1]}>
           <View style={styles.calendarHeader}>
-            <Text style={styles.monthLabel}>July 2024</Text>
+            <Text style={styles.monthLabel}>
+              {new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+            </Text>
             <View style={styles.calendarNavRow}>
-              <TouchableOpacity style={styles.navBtn}>
+              <TouchableOpacity 
+                style={styles.navBtn}
+                onPress={() => {
+                  if (currentMonth === 0) {
+                    setCurrentMonth(11);
+                    setCurrentYear(prev => prev - 1);
+                  } else {
+                    setCurrentMonth(prev => prev - 1);
+                  }
+                }}
+              >
                 <MaterialIcons name="chevron-left" size={24} color={Theme.colors.onSurface} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.navBtn}>
+              <TouchableOpacity 
+                style={styles.navBtn}
+                onPress={() => {
+                  if (currentMonth === 11) {
+                    setCurrentMonth(0);
+                    setCurrentYear(prev => prev + 1);
+                  } else {
+                    setCurrentMonth(prev => prev + 1);
+                  }
+                }}
+              >
                 <MaterialIcons name="chevron-right" size={24} color={Theme.colors.onSurface} />
               </TouchableOpacity>
             </View>
@@ -105,18 +159,30 @@ export function ScheduleScreen() {
                 return <View key={`empty-${index}`} style={styles.emptyDay} />;
               }
 
+              const isHoliday = getHolidayForDay(day);
+              const isLeaveStart = day === 15 && currentYear === 2024 && currentMonth === 6;
+              const isLeaveMiddle = day >= 16 && day <= 18 && currentYear === 2024 && currentMonth === 6;
+              const isLeaveEnd = day === 19 && currentYear === 2024 && currentMonth === 6;
+              const isSelected = day === 23 && currentYear === 2024 && currentMonth === 6;
+
               const customStyle = getDayStyle(day);
               const customTextStyle = getDayTextStyle(day);
 
               return (
                 <TouchableOpacity
                   key={`day-${day}`}
-                  style={[styles.dayCell, customStyle]}
+                  style={styles.dayCell}
                   onPress={() => handleDayPress(day)}
                   disabled={day === null}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.dayText, customTextStyle]}>{day}</Text>
+                  {isHoliday || isSelected || isLeaveStart || isLeaveMiddle || isLeaveEnd ? (
+                    <View style={[styles.dayHighlight, customStyle]}>
+                      <Text style={[styles.dayText, customTextStyle]}>{day}</Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.dayText, customTextStyle]}>{day}</Text>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -137,55 +203,47 @@ export function ScheduleScreen() {
 
         {/* ── Events List ────────────────────────────────────────────────── */}
         <View style={styles.eventsSection}>
-          <Text style={styles.eventsTitle}>Upcoming in July</Text>
+          <Text style={styles.eventsTitle}>Holidays in {currentYear}</Text>
 
-          {/* Event Card 1 */}
-          <TouchableOpacity
-            style={[styles.eventCard, Theme.elevation.level1]}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.eventBadge, { backgroundColor: Theme.colors.tertiaryContainer }]}>
-              <Text style={[styles.eventMonth, { color: Theme.colors.onTertiaryContainer }]}>Jul</Text>
-              <Text style={[styles.eventDayNum, { color: Theme.colors.onTertiaryContainer }]}>04</Text>
-            </View>
-            <View style={styles.eventDetails}>
-              <Text style={styles.eventTitle}>Independence Day</Text>
-              <Text style={styles.eventSub}>Public Holiday • Office Closed</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={Theme.colors.outline} />
-          </TouchableOpacity>
+          {holidays.length > 0 ? (
+            holidays.map((item) => {
+              const dateObj = new Date(item.holidayDate);
+              const monthShort = isNaN(dateObj.getTime())
+                ? 'Day'
+                : dateObj.toLocaleDateString('en-US', { month: 'short' });
+              const dayStr = isNaN(dateObj.getTime())
+                ? '?'
+                : dateObj.toLocaleDateString('en-US', { day: '2-digit' });
 
-          {/* Event Card 2 */}
-          <TouchableOpacity
-            style={[styles.eventCard, Theme.elevation.level1]}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.eventBadge, { backgroundColor: Theme.colors.primaryContainer }]}>
-              <Text style={[styles.eventMonth, { color: Theme.colors.onPrimaryContainer }]}>Jul</Text>
-              <Text style={[styles.eventDayNum, { color: Theme.colors.onPrimaryContainer }]}>15</Text>
-            </View>
-            <View style={styles.eventDetails}>
-              <Text style={styles.eventTitle}>Annual Leave Begins</Text>
-              <Text style={styles.eventSub}>5 days • Vacation in Hawaii</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={Theme.colors.outline} />
-          </TouchableOpacity>
-
-          {/* Event Card 3 */}
-          <TouchableOpacity
-            style={[styles.eventCard, Theme.elevation.level1]}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.eventBadge, { backgroundColor: Theme.colors.secondaryContainer }]}>
-              <Text style={[styles.eventMonth, { color: Theme.colors.onSecondaryContainer }]}>Jul</Text>
-              <Text style={[styles.eventDayNum, { color: Theme.colors.onSecondaryContainer }]}>23</Text>
-            </View>
-            <View style={styles.eventDetails}>
-              <Text style={styles.eventTitle}>Quarterly Review</Text>
-              <Text style={styles.eventSub}>10:00 AM - 11:30 AM • Conf Room B</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={Theme.colors.outline} />
-          </TouchableOpacity>
+              return (
+                <TouchableOpacity
+                  key={`holiday-${item.id}`}
+                  style={[styles.eventCard, Theme.elevation.level1]}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.eventBadge, { backgroundColor: Theme.colors.tertiaryContainer }]}>
+                    <Text style={[styles.eventMonth, { color: Theme.colors.onTertiaryContainer }]}>
+                      {monthShort}
+                    </Text>
+                    <Text style={[styles.eventDayNum, { color: Theme.colors.onTertiaryContainer }]}>
+                      {dayStr}
+                    </Text>
+                  </View>
+                  <View style={styles.eventDetails}>
+                    <Text style={styles.eventTitle}>{item.name}</Text>
+                    <Text style={styles.eventSub}>
+                      {item.description || 'Official Holiday • Office Closed'}
+                    </Text>
+                  </View>
+              
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <Text style={{ ...Theme.typography.bodyMd, color: Theme.colors.outline, paddingHorizontal: 4, fontStyle: 'italic' }}>
+              No upcoming official holidays registered.
+            </Text>
+          )}
         </View>
       </ScrollView>
 
@@ -299,11 +357,11 @@ const styles = StyleSheet.create({
   },
   weekdayRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   weekdayText: {
-    width: 38,
+    width: '14.28%',
     textAlign: 'center',
     fontSize: Theme.typography.labelLg.fontSize,
     fontFamily: Theme.typography.labelLg.fontFamily,
@@ -313,21 +371,20 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
+    justifyContent: 'flex-start',
     rowGap: 8,
   },
   emptyDay: {
-    width: 38,
+    width: '14.28%',
     height: 38,
-    margin: 2,
-  },
-  dayCell: {
-    width: 38,
-    height: 38,
-    margin: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 19,
+  },
+  dayCell: {
+    width: '14.28%',
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayText: {
     fontSize: Theme.typography.bodyMd.fontSize,
@@ -339,26 +396,37 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     borderWidth: 2,
     borderColor: Theme.colors.surfaceContainerLowest,
+    width: 38,
+    height: 38,
   },
   holidayDayText: {
     color: Theme.colors.onTertiaryContainer,
     fontWeight: '700',
+  },
+  dayHighlight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: 38,
   },
   leaveDayStart: {
     backgroundColor: Theme.colors.primaryContainer,
     borderTopLeftRadius: 19,
     borderBottomLeftRadius: 19,
     borderRadius: 0,
+    height: 38,
   },
   leaveDayMiddle: {
     backgroundColor: Theme.colors.primaryContainer,
     borderRadius: 0,
+    height: 38,
   },
   leaveDayEnd: {
     backgroundColor: Theme.colors.primaryContainer,
     borderTopRightRadius: 19,
     borderBottomRightRadius: 19,
     borderRadius: 0,
+    height: 38,
   },
   leaveDayText: {
     color: Theme.colors.onPrimaryContainer,
@@ -368,6 +436,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Theme.colors.primary,
     borderRadius: 19,
+    width: 38,
+    height: 38,
   },
   legendContainer: {
     marginTop: 20,
