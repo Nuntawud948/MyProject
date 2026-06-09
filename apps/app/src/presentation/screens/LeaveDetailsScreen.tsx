@@ -1,168 +1,207 @@
-/**
- * @file LeaveDetailsScreen.tsx
- * @description Screen displaying detail breakdown of a leave request along with approval workflows and timeline status.
- */
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Image,
+  ActivityIndicator,
+  FlatList,
   Platform,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { getLeaveRequests, LeaveRequestResponse } from '../../data/apis/leave.api';
 
 export function LeaveDetailsScreen() {
   const navigation = useNavigation<any>();
-  const route = useRoute<any>();
-  const { logout } = useAuth();
+  const { session } = useAuth();
+  const employeeId = Number(session?.employeeId || 0);
   const insets = useSafeAreaInsets();
 
-  const userAvatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCMkTtQ960cOCGlzHxlU1cbnc8LaSU2dtSIzg0tH8Jid5W3ZFFu25NYOKQJAZzD0juYjZbkwSiTpli33CewD4Lsole7MW_eCBNFHcXjGtKQ5Xr4V9YIVyb5OkBaqX88W2-ch0-ZEtTtHehhhMbwL-Ak5KGagrR6LtuQGKwRhr1x5ly2GJhah3uIZrsuR6hQL3YshSsHVPrq07ccn2iwCEUxQG8yRmeUDinvz6VI7oiTcNdBt9mUFI_k0Dwcx5qyDsDl8r1D696BXqI';
+  const [activeTab, setActiveTab] = useState<'request' | 'approve'>('request');
+  const [requestsList, setRequestsList] = useState<LeaveRequestResponse[]>([]);
+  const [approvalsList, setApprovalsList] = useState<LeaveRequestResponse[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+
+  // ── Fetch List ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (employeeId) {
+      loadRequestsList();
+    }
+  }, [employeeId]);
+
+  // Reload lists when the screen comes back into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (employeeId) {
+        loadRequestsList();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, employeeId]);
+
+  const loadRequestsList = async () => {
+    setIsLoadingList(true);
+    try {
+      const list = await getLeaveRequests(employeeId);
+      // Sort list by ID descending (most recent first)
+      const sorted = [...list].sort((a, b) => b.id - a.id);
+      setRequestsList(sorted);
+
+      // Fetch pending approvals where logged-in user is the current active approver
+      const approvals = await getLeaveRequests(undefined, employeeId);
+      const sortedApprovals = [...approvals].sort((a, b) => b.id - a.id);
+      setApprovalsList(sortedApprovals);
+    } catch (err) {
+      console.log('Failed to fetch leave requests:', err);
+    } finally {
+      setIsLoadingList(false);
+    }
+  };
+
+  const formatDisplayDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const s = status.toLowerCase();
+    if (s.includes('approved')) return Theme.colors.success;
+    if (s.includes('reject') || s.includes('deny')) return Theme.colors.error;
+    if (s.includes('review') || s.includes('progress') || s.includes('pending')) return Theme.colors.tertiary;
+    return Theme.colors.outline;
+  };
+
+  const currentData = activeTab === 'request' ? requestsList : approvalsList;
 
   return (
     <View style={styles.root}>
-      {/* ── TopAppBar ──────────────────────────────────────────────────── */}
+      {/* Top App Bar */}
       <View style={[styles.topAppBar, { paddingTop: insets.top, height: Theme.spacing.touchTarget + insets.top }]}>
         <View style={styles.userInfo}>
-          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={styles.backBtn}>
-            <MaterialIcons name="arrow-back" size={24} color={Theme.colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.appBarTitle}>Leave History Details</Text>
+          <Text style={styles.appBarTitle}>Leave Management</Text>
         </View>
-        <TouchableOpacity style={styles.bellButton} activeOpacity={0.7}>
-          <MaterialIcons name="notifications" size={24} color={Theme.colors.onSurfaceVariant} />
+        <TouchableOpacity onPress={loadRequestsList} style={styles.bellButton} activeOpacity={0.7}>
+          <View style={styles.bellIconContainer}>
+            <MaterialIcons
+              name={approvalsList.length > 0 ? 'notifications-active' : 'refresh'}
+              size={24}
+              color={approvalsList.length > 0 ? Theme.colors.error : Theme.colors.primary}
+            />
+            {approvalsList.length > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{approvalsList.length}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
-        {/* ── Hero Details Card ───────────────────────────────────────────── */}
-        <View style={[styles.heroCard, Theme.elevation.level1]}>
-          <View style={styles.heroHeader}>
-            <View>
-              <View style={styles.leaveTypeBadge}>
-                <Text style={styles.leaveTypeBadgeText}>Annual Leave</Text>
-              </View>
-              <Text style={styles.leaveTitle}>Family vacation</Text>
-            </View>
-            <View style={styles.iconBox}>
-              <MaterialIcons name="beach-access" size={24} color={Theme.colors.tertiary} />
-            </View>
-          </View>
-
-          <View style={styles.heroBody}>
-            <View style={styles.detailRow}>
-              <MaterialIcons name="calendar-month" size={20} color={Theme.colors.outline} />
-              <View>
-                <Text style={styles.detailLabel}>Date Range</Text>
-                <Text style={styles.detailValue}>Oct 12 - Oct 15, 2023</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <MaterialIcons name="info" size={20} color={Theme.colors.outline} />
-              <View>
-                <Text style={styles.detailLabel}>Status</Text>
-                <Text style={[styles.detailValue, { color: Theme.colors.tertiaryContainer, fontWeight: '600' }]}>
-                  Under HR Review
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Timeline Workflow Section ───────────────────────────────────── */}
-        <View style={styles.workflowSection}>
-          <Text style={styles.sectionTitle}>Approval Workflow</Text>
-          <View style={styles.timeline}>
-            
-            {/* Step 1: Completed */}
-            <View style={styles.timelineItem}>
-              <View style={styles.timelineConnectorCol}>
-                <View style={styles.circleActive}>
-                  <MaterialIcons name="check" size={14} color={Theme.colors.onPrimary} />
-                </View>
-                <View style={styles.connectorLine} />
-              </View>
-              <View style={styles.timelineContent}>
-                <View style={styles.timelineHeader}>
-                  <Text style={styles.timelineStepTitle}>Request Submitted</Text>
-                  <Text style={styles.timelineDate}>Oct 01, 2023</Text>
-                </View>
-                <Text style={styles.timelineText}>The request was successfully submitted by the employee.</Text>
-              </View>
-            </View>
-
-            {/* Step 2: Completed */}
-            <View style={styles.timelineItem}>
-              <View style={styles.timelineConnectorCol}>
-                <View style={styles.circleActive}>
-                  <MaterialIcons name="check" size={14} color={Theme.colors.onPrimary} />
-                </View>
-                <View style={styles.connectorLine} />
-              </View>
-              <View style={styles.timelineContent}>
-                <View style={styles.timelineHeader}>
-                  <Text style={styles.timelineStepTitle}>Line Manager Approval</Text>
-                  <Text style={styles.timelineDate}>Oct 02, 2023</Text>
-                </View>
-                <Text style={styles.timelineText}>
-                  Approved by <Text style={styles.boldText}>Sarah Jenkins</Text>.
-                </Text>
-                <View style={styles.commentBox}>
-                  <Text style={styles.commentText}>
-                    "Approved. Please ensure handovers are completed before the 12th."
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Step 3: Pending */}
-            <View style={[styles.timelineItem, { paddingBottom: 0 }]}>
-              <View style={styles.timelineConnectorCol}>
-                <View style={styles.circlePending}>
-                  <View style={styles.circlePendingDot} />
-                </View>
-              </View>
-              <View style={styles.timelineContent}>
-                <View style={styles.timelineHeader}>
-                  <Text style={[styles.timelineStepTitle, { color: Theme.colors.primary }]}>
-                    HR Final Approval
-                  </Text>
-                  <View style={styles.statusProgressBadge}>
-                    <Text style={styles.statusProgressBadgeText}>In Progress</Text>
-                  </View>
-                </View>
-                <Text style={styles.timelineText}>
-                  Awaiting final verification from the People & Culture department.
-                </Text>
-                <View style={styles.waitNoticeCard}>
-                  <MaterialIcons name="hourglass-empty" size={20} color={Theme.colors.outline} />
-                  <Text style={styles.waitNoticeText}>
-                    Standard processing time: 1-2 business days
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-          </View>
-        </View>
-
-        {/* ── Help Button ────────────────────────────────────────────────── */}
-        <TouchableOpacity style={styles.helpBtn} activeOpacity={0.7}>
-          <MaterialIcons name="help-outline" size={18} color={Theme.colors.primary} />
-          <Text style={styles.helpBtnText}>Need help with this request?</Text>
+      {/* Alarm Bell Message Banner */}
+      {approvalsList.length > 0 && activeTab === 'request' && (
+        <TouchableOpacity
+          style={styles.alarmBanner}
+          onPress={() => setActiveTab('approve')}
+          activeOpacity={0.9}
+        >
+          <MaterialIcons name="warning" size={20} color={Theme.colors.onError} />
+          <Text style={styles.alarmBannerText}>
+            You have {approvalsList.length} leave request{approvalsList.length > 1 ? 's' : ''} awaiting your approval.
+          </Text>
+          <MaterialIcons name="chevron-right" size={20} color={Theme.colors.onError} />
         </TouchableOpacity>
-      </ScrollView>
+      )}
 
-      {/* ── BottomNavBar ───────────────────────────────────────────────── */}
+      {/* Tab Bar Selector */}
+      <View style={styles.tabBarContainer}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'request' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('request')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabButtonText, activeTab === 'request' && styles.tabButtonTextActive]}>
+            My Requests
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'approve' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('approve')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.tabButtonContent}>
+            <Text style={[styles.tabButtonText, activeTab === 'approve' && styles.tabButtonTextActive]}>
+              Approvals
+            </Text>
+            {approvalsList.length > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{approvalsList.length}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Requests List */}
+      {isLoadingList ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={currentData}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              {activeTab === 'request'
+                ? 'No leave requests recorded yet.'
+                : 'No pending approvals for you.'}
+            </Text>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.listItemCard, Theme.elevation.level1]}
+              onPress={() => navigation.navigate('LeaveRequestDetails', { id: item.id })}
+              activeOpacity={0.8}
+            >
+              <View style={styles.listItemHeader}>
+                <View style={styles.listItemIconBox}>
+                  <MaterialIcons name="event" size={20} color={Theme.colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.listItemTypeName}>{item.leaveTypeName}</Text>
+                  <Text style={styles.listItemDateRange}>
+                    {formatDisplayDate(item.startDate)} - {formatDisplayDate(item.endDate)}
+                  </Text>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
+                  <Text style={[styles.statusBadgeText, { color: getStatusColor(item.status) }]}>
+                    {item.status}
+                  </Text>
+                </View>
+              </View>
+              {activeTab === 'approve' && (
+                <Text style={styles.employeeNameText}>
+                  Requester: <Text style={styles.boldText}>{item.employeeName}</Text>
+                </Text>
+              )}
+              <Text style={styles.listItemReason} numberOfLines={1}>
+                {item.reason || 'No Reason Provided'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        />
+      )}
+
+      {/* BottomNavBar */}
       <View style={[styles.bottomNavBar, { paddingBottom: insets.bottom, height: 64 + insets.bottom }]}>
         <TouchableOpacity
           style={styles.navItem}
@@ -205,6 +244,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   topAppBar: {
     height: Theme.spacing.touchTarget,
     backgroundColor: Theme.colors.surfaceContainerLow,
@@ -220,9 +264,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  backBtn: {
-    padding: 8,
-  },
   appBarTitle: {
     fontSize: Theme.typography.titleLg.fontSize,
     fontFamily: Theme.typography.titleLg.fontFamily,
@@ -232,230 +273,150 @@ const styles = StyleSheet.create({
   bellButton: {
     padding: 8,
   },
-  scroll: {
+  bellIconContainer: {
+    position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: Theme.colors.error,
+    borderRadius: 9,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Theme.colors.surfaceContainerLow,
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  alarmBanner: {
+    backgroundColor: Theme.colors.errorContainer,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Theme.spacing.marginMobile,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  alarmBannerText: {
     flex: 1,
+    color: Theme.colors.onErrorContainer,
+    fontSize: Theme.typography.bodyMd.fontSize,
+    fontFamily: Theme.typography.bodyMd.fontFamily,
+    fontWeight: '600',
+  },
+  tabBarContainer: {
+    flexDirection: 'row',
+    backgroundColor: Theme.colors.surfaceContainerLow,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.outlineVariant,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomColor: Theme.colors.primary,
+  },
+  tabButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tabButtonText: {
+    fontSize: Theme.typography.bodyLg.fontSize,
+    fontFamily: Theme.typography.bodyLg.fontFamily,
+    color: Theme.colors.onSurfaceVariant,
+    fontWeight: '500',
+  },
+  tabButtonTextActive: {
+    color: Theme.colors.primary,
+    fontWeight: '700',
+  },
+  tabBadge: {
+    backgroundColor: Theme.colors.primary,
+    borderRadius: Theme.rounded.full,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingHorizontal: Theme.spacing.marginMobile,
-    paddingTop: 24,
-    paddingBottom: 100,
+    paddingTop: 16,
   },
-  heroCard: {
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 48,
+    color: Theme.colors.outline,
+    fontStyle: 'italic',
+  },
+  listItemCard: {
     backgroundColor: Theme.colors.surfaceContainerLowest,
     borderRadius: Theme.rounded.xl,
-    overflow: 'hidden',
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(193, 198, 214, 0.3)',
-    marginBottom: 24,
+    borderColor: 'rgba(193, 198, 214, 0.2)',
   },
-  heroHeader: {
-    padding: 20,
-    backgroundColor: Theme.colors.surfaceBright,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.outlineVariant,
+  listItemHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  leaveTypeBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0, 91, 191, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Theme.rounded.full,
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 8,
   },
-  leaveTypeBadgeText: {
-    fontSize: Theme.typography.labelMd.fontSize,
-    fontFamily: Theme.typography.labelMd.fontFamily,
-    color: Theme.colors.primary,
-    fontWeight: '600',
+  listItemIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: Theme.rounded.lg,
+    backgroundColor: Theme.colors.primaryFixed,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  leaveTitle: {
-    fontSize: Theme.typography.headlineMd.fontSize,
-    fontFamily: Theme.typography.headlineMd.fontFamily,
+  listItemTypeName: {
+    fontSize: Theme.typography.titleLg.fontSize,
+    fontFamily: Theme.typography.titleLg.fontFamily,
     fontWeight: '700',
     color: Theme.colors.onSurface,
   },
-  iconBox: {
-    backgroundColor: Theme.colors.tertiaryFixed,
-    width: 44,
-    height: 44,
-    borderRadius: Theme.rounded.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroBody: {
-    padding: 20,
-    gap: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  detailLabel: {
-    fontSize: Theme.typography.labelMd.fontSize,
-    fontFamily: Theme.typography.labelMd.fontFamily,
-    color: Theme.colors.onSurfaceVariant,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  detailValue: {
-    fontSize: Theme.typography.bodyLg.fontSize,
-    fontFamily: Theme.typography.bodyLg.fontFamily,
-    color: Theme.colors.onSurface,
-    marginTop: 2,
-  },
-  workflowSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: Theme.typography.titleLg.fontSize,
-    fontFamily: Theme.typography.titleLg.fontFamily,
-    fontWeight: '600',
-    color: Theme.colors.onSurface,
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  timeline: {
-    paddingHorizontal: 4,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingBottom: 24,
-  },
-  timelineConnectorCol: {
-    alignItems: 'center',
-    width: 24,
-  },
-  circleActive: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  circlePending: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: Theme.colors.primaryContainer,
-    backgroundColor: Theme.colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  circlePendingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Theme.colors.primaryContainer,
-  },
-  connectorLine: {
-    position: 'absolute',
-    left: 11,
-    top: 24,
-    bottom: -8,
-    width: 2,
-    backgroundColor: Theme.colors.outlineVariant,
-    zIndex: 1,
-  },
-  timelineContent: {
-    flex: 1,
-    paddingTop: 2,
-  },
-  timelineHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  timelineStepTitle: {
-    fontSize: Theme.typography.titleLg.fontSize,
-    fontFamily: Theme.typography.titleLg.fontFamily,
-    fontWeight: '600',
-    color: Theme.colors.onSurface,
-  },
-  timelineDate: {
-    fontSize: Theme.typography.labelMd.fontSize,
-    fontFamily: Theme.typography.labelMd.fontFamily,
-    color: Theme.colors.onSurfaceVariant,
-  },
-  timelineText: {
+  listItemDateRange: {
     fontSize: Theme.typography.bodyMd.fontSize,
     fontFamily: Theme.typography.bodyMd.fontFamily,
     color: Theme.colors.onSurfaceVariant,
-    lineHeight: Theme.typography.bodyMd.lineHeight,
+    marginTop: 1,
   },
-  boldText: {
-    fontWeight: '600',
-    color: Theme.colors.onSurface,
-  },
-  commentBox: {
-    marginTop: 8,
-    backgroundColor: Theme.colors.surfaceContainer,
-    borderRadius: Theme.rounded.lg,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Theme.colors.outlineVariant,
-  },
-  commentText: {
+  listItemReason: {
     fontSize: Theme.typography.bodyMd.fontSize,
     fontFamily: Theme.typography.bodyMd.fontFamily,
-    color: Theme.colors.onSurface,
-    fontStyle: 'italic',
+    color: Theme.colors.onSurfaceVariant,
+    lineHeight: 18,
+    paddingLeft: 4,
   },
-  statusProgressBadge: {
-    backgroundColor: 'rgba(26, 115, 232, 0.1)',
+  employeeNameText: {
+    fontSize: Theme.typography.bodyMd.fontSize,
+    color: Theme.colors.onSurfaceVariant,
+    marginBottom: 6,
+    paddingLeft: 4,
+  },
+  statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: Theme.rounded.sm,
   },
-  statusProgressBadgeText: {
+  statusBadgeText: {
     fontSize: Theme.typography.labelMd.fontSize,
     fontFamily: Theme.typography.labelMd.fontFamily,
-    color: Theme.colors.primary,
-    fontWeight: '600',
-  },
-  waitNoticeCard: {
-    marginTop: 12,
-    padding: 16,
-    borderRadius: Theme.rounded.xl,
-    borderWidth: 1.5,
-    borderColor: Theme.colors.outlineVariant,
-    borderStyle: 'dashed',
-    backgroundColor: Theme.colors.surfaceContainerLow,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    justifyContent: 'center',
-  },
-  waitNoticeText: {
-    fontSize: Theme.typography.labelLg.fontSize,
-    fontFamily: Theme.typography.labelLg.fontFamily,
-    color: Theme.colors.outline,
-    textAlign: 'center',
-  },
-  helpBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: Theme.rounded.full,
-    marginTop: 8,
-  },
-  helpBtnText: {
-    fontSize: Theme.typography.labelLg.fontSize,
-    fontFamily: Theme.typography.labelLg.fontFamily,
-    color: Theme.colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   bottomNavBar: {
     position: 'absolute',
@@ -496,5 +457,9 @@ const styles = StyleSheet.create({
   navTextActive: {
     color: Theme.colors.onPrimaryFixedVariant,
     fontWeight: '600',
+  },
+  boldText: {
+    fontWeight: '700',
+    color: Theme.colors.onSurface,
   },
 });

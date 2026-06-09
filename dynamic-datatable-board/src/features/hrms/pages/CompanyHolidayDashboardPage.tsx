@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   CalendarDays,
   CalendarCheck,
-  CalendarPlus,
   ShieldAlert,
   Plus
 } from 'lucide-react';
@@ -160,7 +159,7 @@ export function CompanyHolidayDashboardPage() {
     };
 
     const response = await companyHoliday.getCompanyHolidays(payload);
-    const serverPayload = response.data?.data ? response.data.data : response.data;
+    const serverPayload = response.data;
     const rawItems = serverPayload?.items || [];
 
     const mappedItems: CompanyHolidayResponse[] = rawItems.map((item: any) => ({
@@ -174,7 +173,7 @@ export function CompanyHolidayDashboardPage() {
 
     return {
       items: mappedItems,
-      totalCount: serverPayload?.totalRecords || serverPayload?.totalCount || 0,
+      totalCount: serverPayload?.totalCount || 0,
       pageSize: params.pageSize,
       pageIndex: params.pageIndex
     };

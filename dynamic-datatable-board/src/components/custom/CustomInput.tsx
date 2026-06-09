@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 export interface CustomInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
   value: string | number;
   onChange: (value: string) => void;
-  type?: 'text' | 'number';
+  type?: 'text' | 'number' | 'password' | 'email';
   numberFormat?: 'integer' | 'decimal'; // 'integer' (00,000) or 'decimal' (0,000.00)
   label?: string;
   error?: string;
@@ -92,7 +92,7 @@ export function CustomInput({
       )}
       <div className="relative">
         <input
-          type={type === 'number' && isFocused ? 'number' : 'text'}
+          type={type === 'number' && isFocused ? 'number' : (type === 'number' ? 'text' : type)}
           value={displayValue}
           onChange={handleChange}
           onFocus={handleFocus}

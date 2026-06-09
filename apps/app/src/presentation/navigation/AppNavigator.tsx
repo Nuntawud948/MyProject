@@ -23,6 +23,7 @@ export type AuthStackParamList = {
 import { ApplyForLeave } from '../screens/ApplyForLeave';
 import { ScheduleScreen } from '../screens/ScheduleScreen';
 import { LeaveDetailsScreen } from '../screens/LeaveDetailsScreen';
+import { LeaveRequestDetails } from '../screens/LeaveRequestDetails';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
 export type AppStackParamList = {
@@ -30,7 +31,8 @@ export type AppStackParamList = {
   Simulation: undefined;
   ApplyForLeave: undefined;
   Schedule: undefined;
-  LeaveDetails: undefined;
+  LeaveDetails: { id?: number };
+  LeaveRequestDetails: { id: number };
   Profile: undefined;
 };
 
@@ -55,6 +57,7 @@ function AppNavigatorInner() {
       <AppStack.Screen name="ApplyForLeave" component={ApplyForLeave} />
       <AppStack.Screen name="Schedule" component={ScheduleScreen} />
       <AppStack.Screen name="LeaveDetails" component={LeaveDetailsScreen} />
+      <AppStack.Screen name="LeaveRequestDetails" component={LeaveRequestDetails} />
       <AppStack.Screen name="Profile" component={ProfileScreen} />
     </AppStack.Navigator>
   );

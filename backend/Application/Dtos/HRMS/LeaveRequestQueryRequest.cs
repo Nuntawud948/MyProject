@@ -6,6 +6,7 @@ using Application.Common.Models;
 public class LeaveRequestQueryRequest : PaginationRequest
 {
     public int? EmployeeId { get; set; }
+    public int? ApproverId { get; set; }
     public string? Status { get; set; }
     public int? LeaveTypeId { get; set; }
     public new string? Search { get; set; }

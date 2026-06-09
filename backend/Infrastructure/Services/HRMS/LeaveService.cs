@@ -310,6 +310,13 @@ public class LeaveService(
             if (request.EmployeeId.HasValue)
                 query = query.Where(lr => lr.EmployeeId == request.EmployeeId.Value);
 
+            if (request.ApproverId.HasValue)
+            {
+                query = query.Where(lr =>
+                    (lr.FirstApproverId == request.ApproverId.Value && lr.FirstApprovalStatus == "Pending") ||
+                    (lr.SecondApproverId == request.ApproverId.Value && lr.FirstApprovalStatus == "Approved" && lr.SecondApprovalStatus == "Pending"));
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
                 query = query.Where(lr => lr.Status == request.Status);
 

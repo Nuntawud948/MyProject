@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Models;
 using Application.Dtos.UMS;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,13 +23,9 @@ public class AuthController(IAuthService authService) : ControllerBase
 
     // 📝 [POST] /api/auth/register -> สำหรับสมัครสมาชิกโมดูล UMS (เผื่อใช้เทสสร้างไอดี)
     [HttpPost("register")]
-    public async Task<IActionResult> Register(
-        [FromBody] LoginRequest request,
-        [FromQuery] string email,
-        [FromQuery] string role = "User"
-    )
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var response = await authService.RegisterAsync(request, email, role);
+        var response = await authService.RegisterAsync(request);
         if (!response.IsSuccess)
         {
             return BadRequest(response);
@@ -53,6 +50,24 @@ public class AuthController(IAuthService authService) : ControllerBase
     public async Task<IActionResult> ResetPassword([FromQuery] string username, [FromQuery] string newPassword)
     {
         var response = await authService.ResetPasswordAsync(username, newPassword);
+        if (!response.IsSuccess)
+        {
+            return BadRequest(response);
+        }
+        return Ok(response);
+    }
+
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUserAccounts([FromQuery] UserAccountRequest request)
+    {
+        var response = await authService.GetUserAccountsAsync(request);
+        return Ok(response);
+    }
+
+    [HttpPut("users/{id:int}")]
+    public async Task<IActionResult> UpdateUserAccount(int id, [FromBody] UpdateUserAccountRequest request)
+    {
+        var response = await authService.UpdateUserAccountAsync(id, request);
         if (!response.IsSuccess)
         {
             return BadRequest(response);

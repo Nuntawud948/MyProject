@@ -23,6 +23,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // ── Attendance (Phase 1) ─────────────────────────────────────────────────
     public DbSet<Attendance> Attendances => Set<Attendance>();
     public DbSet<CompanyHoliday> CompanyHolidays => Set<CompanyHoliday>();
+    
+    // ── Geofencing ───────────────────────────────────────────────────────────
+    public DbSet<Geofence> Geofences => Set<Geofence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +85,19 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(a => a.CheckInMethod).HasMaxLength(10);
             entity.Property(a => a.ImageUrl).HasMaxLength(500);
             entity.Property(a => a.Reason).HasMaxLength(1000);
+        });
+
+        // ── Geofencing — Table Schema & Column Constraints ─────────────────────
+        modelBuilder.Entity<Geofence>(entity =>
+        {
+            entity.ToTable("Geofences", "hrms");
+            entity.HasKey(g => g.Id);
+
+            // GPS coordinates stored at decimal(9,6) per spec
+            entity.Property(g => g.Latitude)
+                  .HasPrecision(9, 6);
+            entity.Property(g => g.Longitude)
+                  .HasPrecision(9, 6);
         });
 
         // ── LeaveBalance Relationships (Restrict to avoid cascade cycles) ────

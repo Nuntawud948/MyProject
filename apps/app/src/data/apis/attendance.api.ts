@@ -81,3 +81,19 @@ export const getTodayAttendance = async (
   );
   return response.data;
 };
+
+// ── Geofences ────────────────────────────────────────────────────────────────
+
+import type { ApiResponseWrapper, GeofencePaginationResponse } from '../dtos/attendance/geofence.response';
+
+/**
+ * Fetches all active geofences from the server.
+ */
+export const getActiveGeofences = async (): Promise<GeofencePaginationResponse> => {
+  const { data: response } = await axios.get<ApiResponseWrapper<GeofencePaginationResponse>>(
+    `${BASE_URL}/api/Geofences`,
+    { params: { pageSize: 100 } }
+  );
+  return response.data;
+};
+

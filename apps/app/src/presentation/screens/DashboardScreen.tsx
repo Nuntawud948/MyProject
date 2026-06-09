@@ -25,11 +25,39 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
 import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../hooks/useAttendance';
 import { ManualCheckInModal } from '../components/attendance/ManualCheckInModal';
+import { ConfirmationDialog } from '../components/attendance/ConfirmationDialog';
 import { Theme } from '../theme';
+import { getActiveGeofences } from '../../data/apis/attendance.api';
+import type { GeofenceResponse } from '../../data/dtos/attendance/geofence.response';
+
+const DEFAULT_GEOFENCES: GeofenceResponse[] = [
+  {
+    id: 1,
+    name: "Headquarters Office",
+    latitude: 13.7563,
+    longitude: 100.5018,
+    radiusInMeters: 150,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: null,
+  },
+  {
+    id: 2,
+    name: "Suburban Warehouse",
+    latitude: 13.6593,
+    longitude: 100.4018,
+    radiusInMeters: 300,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: null,
+  }
+];
+
 
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
@@ -48,8 +76,14 @@ export function DashboardScreen() {
 
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [showManualModal, setShowManualModal] = useState(false);
+  const [showInConfirm, setShowInConfirm] = useState(false);
+  const [showOutConfirm, setShowOutConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState('');
+  
+  const [geofences, setGeofences] = useState<GeofenceResponse[]>([]);
+  const [isInsideAnyGeofence, setIsInsideAnyGeofence] = useState(false);
+  const [nearestGeofence, setNearestGeofence] = useState<GeofenceResponse | null>(null);
 
   // Geofence Pulse Animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -92,13 +126,82 @@ export function DashboardScreen() {
     ).start();
   }, [pulseAnim]);
 
-  // ── On mount: load status + acquire GPS ─────────────────────────────────
+  const fetchGeofences = async () => {
+    try {
+      const res = await getActiveGeofences();
+      const activeFences = (res.items || []).filter(f => f.isActive);
+      if (activeFences.length === 0) {
+        setGeofences(DEFAULT_GEOFENCES);
+        return DEFAULT_GEOFENCES;
+      }
+      setGeofences(activeFences);
+      return activeFences;
+    } catch (err) {
+      console.log('Error fetching active geofences, using mock data:', err);
+      setGeofences(DEFAULT_GEOFENCES);
+      return DEFAULT_GEOFENCES;
+    }
+  };
+
+  const getDistanceInMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // metres
+    const phi1 = (lat1 * Math.PI) / 180;
+    const phi2 = (lat2 * Math.PI) / 180;
+    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+    const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // in metres
+  };
+
+  useEffect(() => {
+    if (coords && geofences.length > 0) {
+      let inside = false;
+      let minDistance = Infinity;
+      let nearest: GeofenceResponse | null = null;
+
+      geofences.forEach(fence => {
+        const dist = getDistanceInMeters(coords.latitude, coords.longitude, fence.latitude, fence.longitude);
+        if (dist <= fence.radiusInMeters) {
+          inside = true;
+        }
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearest = fence;
+        }
+      });
+
+      setIsInsideAnyGeofence(inside);
+      setNearestGeofence(nearest);
+    } else {
+      setIsInsideAnyGeofence(false);
+      setNearestGeofence(null);
+    }
+  }, [coords, geofences]);
+
+  // ── On mount & on screen focus: load status + acquire GPS ────────────────
   useEffect(() => {
     if (employeeId) {
       loadTodayStatus();
     }
     acquireLocation();
-  }, [employeeId, loadTodayStatus]);
+    fetchGeofences();
+
+    // Listen to screen focus events to reload status automatically when returning to home page
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (employeeId) {
+        loadTodayStatus();
+        acquireLocation();
+        fetchGeofences();
+      }
+    });
+
+    return unsubscribe;
+  }, [employeeId, loadTodayStatus, navigation]);
 
   const acquireLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -116,16 +219,32 @@ export function DashboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadTodayStatus(), acquireLocation()]);
+    await Promise.all([loadTodayStatus(), acquireLocation(), fetchGeofences()]);
     setRefreshing(false);
   };
 
-  // ── Auto Clock-In ────────────────────────────────────────────────────────
-  const handleAutoClockIn = async () => {
+  // ── Auto Clock-In (Show Confirmation) ────────────────────────────────────
+  const handleAutoClockIn = () => {
     if (!coords) {
       Alert.alert('Location', 'Acquiring GPS — please wait.');
       return;
     }
+
+    if (!isInsideAnyGeofence) {
+      Alert.alert(
+        'Outside Geofence',
+        'Auto Check-In is permitted only if you are within an active geofence. For off-site check-in, please use the "Manual Request" option.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setShowInConfirm(true);
+  };
+
+  const executeAutoClockIn = async () => {
+    setShowInConfirm(false);
+    if (!coords) return;
     await clockIn({
       employeeId,
       latitude: coords.latitude,
@@ -133,6 +252,16 @@ export function DashboardScreen() {
       checkInMethod: 'Auto',
     });
   };
+
+  const handleClockOut = () => {
+    setShowOutConfirm(true);
+  };
+
+  const executeClockOut = async () => {
+    setShowOutConfirm(false);
+    await clockOut();
+  };
+
 
   // ── Manual Clock-In (via modal) ─────────────────────────────────────────
   const handleManualConfirm = async (reason: string, imageUri: string) => {
@@ -203,47 +332,109 @@ export function DashboardScreen() {
       >
         {/* ── Geofence Map Card ───────────────────────────────────────────── */}
         <View style={[styles.mapCard, Theme.elevation.level1]}>
-          <ImageBackground
-            source={{ uri: mapBackground }}
-            style={styles.mapBackground}
-            imageStyle={styles.mapBackgroundImage}
-          >
-            {/* Geofence Pulse Animation overlay */}
-            <View style={styles.geofenceContainer}>
-              <Animated.View
-                style={[
-                  styles.geofenceCircle,
-                  { transform: [{ scale: pulseAnim }] },
-                ]}
-              />
-              <View style={styles.gpsDot} />
+          {!coords ? (
+            <View style={[styles.mapBackground, { backgroundColor: Theme.colors.surfaceContainer, justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator size="large" color={Theme.colors.primary} />
+              <Text style={{ marginTop: 8, color: Theme.colors.onSurfaceVariant, fontFamily: Theme.typography.bodyMd.fontFamily }}>
+                Acquiring GPS Location...
+              </Text>
             </View>
+          ) : (
+            <View style={{ height: 250, width: '100%' }}>
+              <WebView
+                originWhitelist={['*']}
+                source={{
+                  html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                      <meta charset="utf-8" />
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                      <style>
+                        html, body, #map { height: 100%; margin: 0; padding: 0; background: #f0f0f0; }
+                        .user-pulse {
+                          width: 14px;
+                          height: 14px;
+                          background-color: ${Theme.colors.primary};
+                          border: 3px solid white;
+                          border-radius: 50%;
+                          box-shadow: 0 0 8px ${Theme.colors.primary};
+                          animation: pulse 2s infinite;
+                        }
+                        @keyframes pulse {
+                          0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.7); }
+                          70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(0, 122, 255, 0); }
+                          100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); }
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <div id="map"></div>
+                      <script>
+                        var map = L.map('map', { zoomControl: false }).setView([${coords.latitude}, ${coords.longitude}], 15);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                          maxZoom: 19,
+                          attribution: '© OpenStreetMap'
+                        }).addTo(map);
 
-            {/* Floating Geofence Tag */}
-            <View style={styles.geofenceTag}>
-              <View style={styles.geofenceTagDot} />
-              <Text style={styles.geofenceTagText}>Office Geofence</Text>
+                        // User Location Marker (Person Icon Style)
+                        var personIcon = L.divIcon({
+                          className: 'person-marker',
+                          html: '<div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background-color: #3b82f6; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>',
+                          iconSize: [32, 32],
+                          iconAnchor: [16, 16]
+                        });
+                        var userMarker = L.marker([${coords.latitude}, ${coords.longitude}], { icon: personIcon }).addTo(map);
+
+                        // Geofences
+                        var fences = ${JSON.stringify(geofences)};
+                        fences.forEach(function(fence) {
+                          // Circle overlay for geofences
+                          L.circle([fence.latitude, fence.longitude], {
+                            color: '#2563eb',
+                            fillColor: '#3b82f6',
+                            fillOpacity: 0.15,
+                            radius: fence.radiusInMeters
+                          }).addTo(map);
+
+                          L.marker([fence.latitude, fence.longitude], {
+                            icon: L.divIcon({
+                              className: 'fence-label',
+                              html: '<div style="background: white; border: 1px solid #2563eb; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-family: sans-serif; font-weight: bold; white-space: nowrap; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">' + fence.name + ' (' + fence.radiusInMeters + 'm)</div>',
+                              iconSize: [120, 20],
+                              iconAnchor: [60, -10]
+                            })
+                          }).addTo(map);
+                        });
+                      </script>
+                    </body>
+                    </html>
+                  `
+                }}
+                style={{ flex: 1 }}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+              />
             </View>
-          </ImageBackground>
+          )}
 
           {/* Map Footer Status bar */}
           <View style={styles.mapStatusBar}>
             <View style={styles.statusInsideContainer}>
               <MaterialIcons
-                name="check-circle"
+                name={isInsideAnyGeofence ? "check-circle" : "error"}
                 size={22}
-                color={Theme.colors.success}
+                color={isInsideAnyGeofence ? Theme.colors.success : Theme.colors.error}
               />
-              <Text style={styles.statusInsideText}>Inside Geofence</Text>
+              <Text style={styles.statusInsideText}>
+                {isInsideAnyGeofence
+                  ? `Inside ${nearestGeofence ? nearestGeofence.name : 'Geofence'}`
+                  : "Outside Approved Fences"
+                }
+              </Text>
             </View>
-            <TouchableOpacity
-              onPress={acquireLocation}
-              style={styles.refreshButton}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="refresh" size={18} color={Theme.colors.primary} />
-              <Text style={styles.refreshText}>Refresh</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -283,7 +474,7 @@ export function DashboardScreen() {
                 styles.checkOutBtn,
                 (!isClockedIn || isLoading) && styles.btnDisabled,
               ]}
-              onPress={clockOut}
+              onPress={handleClockOut}
               disabled={!isClockedIn || isLoading}
               activeOpacity={0.8}
             >
@@ -366,7 +557,7 @@ export function DashboardScreen() {
                 </View>
                 <View style={styles.activityRight}>
                   <Text style={styles.activityTimeText}>
-                    {formatTime(todayRecord.clockInTime)}
+                    {formatTime(todayRecord.clockInTime)} - {todayRecord.clockOutTime ? formatTime(todayRecord.clockOutTime) : '-'}
                   </Text>
                   <View style={styles.verifiedBadge}>
                     <View style={styles.verifiedDot} />
@@ -425,7 +616,7 @@ export function DashboardScreen() {
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => navigation.navigate('LeaveDetails')}
+          onPress={() => navigation.navigate('LeaveDetails', { id: undefined })}
           activeOpacity={0.8}
         >
           <MaterialIcons name="history" size={22} color={Theme.colors.onSurfaceVariant} />
@@ -449,6 +640,30 @@ export function DashboardScreen() {
         longitude={coords?.longitude ?? 0}
         onConfirm={handleManualConfirm}
         onCancel={() => setShowManualModal(false)}
+      />
+
+      {/* ── Auto Check-In Confirmation Dialog ──────────────────────────────── */}
+      <ConfirmationDialog
+        visible={showInConfirm}
+        title="Check-In Confirmation"
+        message={`Are you sure you want to clock in at your current location?\n\nZone: ${nearestGeofence ? nearestGeofence.name : 'Active Geofence'}`}
+        iconName="login"
+        confirmText="Check In"
+        cancelText="Cancel"
+        onConfirm={executeAutoClockIn}
+        onCancel={() => setShowInConfirm(false)}
+      />
+
+      {/* ── Check-Out Confirmation Dialog ─────────────────────────────────── */}
+      <ConfirmationDialog
+        visible={showOutConfirm}
+        title="Check-Out Confirmation"
+        message="Are you sure you want to clock out and end your shift?"
+        iconName="logout"
+        confirmText="Check Out"
+        cancelText="Cancel"
+        onConfirm={executeClockOut}
+        onCancel={() => setShowOutConfirm(false)}
       />
     </View>
   );

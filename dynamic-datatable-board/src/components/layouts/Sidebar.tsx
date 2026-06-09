@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../ui/button';
-import { LogOut, Users, Settings, LayoutDashboard, Calendar, Clock, Shield } from 'lucide-react';
+import { LogOut, Users, Settings, LayoutDashboard, Calendar, Clock, Shield, MapPin } from 'lucide-react';
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -54,6 +54,11 @@ export function Sidebar() {
           <Link to="/hrms/attendance" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive('/hrms/attendance') ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}`}>
             <Clock size={16} />
             <span>Attendance Ledger</span>
+          </Link>
+
+          <Link to="/hrms/geofences" className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive('/hrms/geofences') ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}`}>
+            <MapPin size={16} />
+            <span>Geofence Settings</span>
           </Link>
 
           <div className="text-[10px] uppercase font-bold text-slate-500 px-3 pt-4 pb-1 tracking-widest">Setup Configuration</div>

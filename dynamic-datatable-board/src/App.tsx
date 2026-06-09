@@ -9,12 +9,14 @@ import { MainLayout } from './components/layouts/MainLayout';
 import { EmployeeDashboardPage } from './features/hrms/pages/EmployeeDashboardPage';
 import { LeaveDashboardPage } from './features/hrms/pages/LeaveDashboardPage';
 import { CompanyHolidayDashboardPage } from './features/hrms/pages/CompanyHolidayDashboardPage';
+import { GeofenceDashboardPage } from './features/hrms/pages/GeofenceDashboardPage';
 import { RoleManagementPage } from './features/setup/pages/RoleManagementPage';
 import LoginPage from './features/auth/pages/LoginPage';
 import ProtectedRoute from './components/shared/data-table/ProtectedRoute';
-import { CalendarDays, Clock, Shield, UserCheck } from 'lucide-react';
+import { CalendarDays, Clock, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import TestPage from "@/features/setup/TestPage.tsx";
+import { UserAccountPage } from './features/setup/UserAccount/UserAccountPage';
 
 // 🧠 คอมโพเนนต์หน้าหน้าแรกสุด (Dashboard หลัก) ที่เราย้ายพิกัดมาลงล็อกระบบ Routing
 function DashboardContent() {
@@ -101,7 +103,7 @@ export default function App() {
 
           {/* 🌟 ปรับตรงนี้: ส่ง <Outlet /> เป็น children เข้าไปใน <MainLayout> สยบเออร์เรอร์ TypeScript */}
           <Route element={
-            <MainLayout currentPath="" onNavigate={() => { }}>
+            <MainLayout>
               <Outlet />
             </MainLayout>
           }>
@@ -124,14 +126,10 @@ export default function App() {
               />
             } />
 
+            <Route path="/hrms/geofences" element={<GeofenceDashboardPage />} />
+
             {/* ⚙️ โมดูลระบบตั้งค่าความปลอดภัย Setup */}
-            <Route path="/setup/users" element={
-              <DummyPlaceholder
-                title="User Accounts Management"
-                description="SSO authentication systems can be configured via administrative YAML declarations. Head back to operational screens."
-                icon={Shield}
-              />
-            } />
+            <Route path="/setup/users" element={<UserAccountPage />} />
             <Route path="/setup/test" element={<TestPage />} />
 
             <Route path="/setup/roles" element={<RoleManagementPage />} />

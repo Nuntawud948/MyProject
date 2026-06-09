@@ -18,128 +18,131 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
 
     public async Task<Response<AttendanceResponse>> ClockInAsync(ClockInRequest request)
     {
-        try
+      try
+      {
+        // Validate: Manual check-in requires both a reason and an image
+        if (request.CheckInMethod == "Manual")
         {
-            // Validate: Manual check-in requires both a reason and an image
-            if (request.CheckInMethod == "Manual")
-            {
-                if (string.IsNullOrWhiteSpace(request.Reason))
-                    return Response<AttendanceResponse>.Failure(
-                        "A reason is required for Manual check-in.");
-
-                if (string.IsNullOrWhiteSpace(request.ImageUrl))
-                    return Response<AttendanceResponse>.Failure(
-                        "A photo is required for Manual check-in.");
-            }
-
-            // Prevent duplicate clock-in for today
-            var todayUtc = DateTime.UtcNow.Date;
-            var existing = await context.Attendances
-                .AsNoTracking()
-                .Where(a =>
-                    a.EmployeeId == request.EmployeeId &&
-                    a.ClockInTime.UtcDateTime.Date == todayUtc)
-                .FirstOrDefaultAsync();
-
-            if (existing != null)
-                return Response<AttendanceResponse>.Failure(
-                    "Employee has already clocked in today.");
-
-            var entity = new Attendance
-            {
-                EmployeeId      = request.EmployeeId,
-                ClockInTime     = DateTimeOffset.UtcNow,
-                Latitude        = request.Latitude,
-                Longitude       = request.Longitude,
-                CheckInMethod   = request.CheckInMethod,
-                Reason          = request.Reason,
-                ImageUrl        = request.ImageUrl,
-                // Auto check-ins are pre-approved; Manual require manager review
-                IsApproved      = request.CheckInMethod == "Auto",
-                CreatedAt       = DateTime.UtcNow,
-            };
-
-            context.Attendances.Add(entity);
-            await context.SaveChangesAsync();
-
-            return Response<AttendanceResponse>.Success(
-                MapToResponse(entity), "Clocked in successfully.");
-        }
-        catch (Exception ex)
-        {
+          if (string.IsNullOrWhiteSpace(request.Reason))
             return Response<AttendanceResponse>.Failure(
-                "An error occurred during clock-in.",
-                new List<string> { ex.Message });
+              "A reason is required for Manual check-in.");
+
+          if (string.IsNullOrWhiteSpace(request.ImageUrl))
+            return Response<AttendanceResponse>.Failure(
+              "A photo is required for Manual check-in.");
         }
+
+        // Prevent duplicate clock-in for today (using local offset representation for the employee)
+        var localNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
+        var todayLocal = localNow.Date;
+        
+        var existing = await context.Attendances
+          .AsNoTracking()
+          .Where(a => a.EmployeeId == request.EmployeeId)
+          .ToListAsync();
+
+        var clockedInToday = existing.Any(a => a.ClockInTime.ToOffset(TimeSpan.FromHours(7)).Date == todayLocal);
+
+        if (clockedInToday)
+          return Response<AttendanceResponse>.Failure(
+            "Employee has already clocked in today.");
+
+        var entity = new Attendance
+        {
+          EmployeeId      = request.EmployeeId,
+          ClockInTime     = DateTimeOffset.UtcNow,
+          Latitude        = request.Latitude,
+          Longitude       = request.Longitude,
+          CheckInMethod   = request.CheckInMethod,
+          Reason          = request.Reason,
+          ImageUrl        = request.ImageUrl,
+          // Auto check-ins are pre-approved; Manual require manager review
+          IsApproved      = request.CheckInMethod == "Auto",
+          CreatedAt       = DateTime.UtcNow,
+        };
+
+        context.Attendances.Add(entity);
+        await context.SaveChangesAsync();
+
+        return Response<AttendanceResponse>.Success(
+          MapToResponse(entity), "Clocked in successfully.");
+      }
+      catch (Exception ex)
+      {
+        return Response<AttendanceResponse>.Failure(
+          "An error occurred during clock-in.",
+          new List<string> { ex.Message });
+      }
     }
 
     // ── Clock-Out ────────────────────────────────────────────────────────────
 
     public async Task<Response<AttendanceResponse>> ClockOutAsync(ClockOutRequest request)
     {
-        try
-        {
-            var todayUtc = DateTime.UtcNow.Date;
+      try
+      {
+        var localNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
+        var todayLocal = localNow.Date;
 
-            var entity = await context.Attendances
-                .Where(a =>
-                    a.EmployeeId == request.EmployeeId &&
-                    a.ClockInTime.UtcDateTime.Date == todayUtc &&
-                    a.ClockOutTime == null)
-                .FirstOrDefaultAsync();
+        var existing = await context.Attendances
+          .Where(a => a.EmployeeId == request.EmployeeId && a.ClockOutTime == null)
+          .ToListAsync();
 
-            if (entity == null)
-                return Response<AttendanceResponse>.Failure(
-                    "No open attendance record found for today. Please clock in first.");
+        var entity = existing.FirstOrDefault(a => a.ClockInTime.ToOffset(TimeSpan.FromHours(7)).Date == todayLocal);
 
-            entity.ClockOutTime = DateTimeOffset.UtcNow;
-            entity.UpdatedAt    = DateTime.UtcNow;
+        if (entity == null)
+          return Response<AttendanceResponse>.Failure(
+            "No open attendance record found for today. Please clock in first.");
 
-            await context.SaveChangesAsync();
+        entity.ClockOutTime = DateTimeOffset.UtcNow;
+        entity.UpdatedAt    = DateTime.UtcNow;
 
-            return Response<AttendanceResponse>.Success(
-                MapToResponse(entity), "Clocked out successfully.");
-        }
-        catch (Exception ex)
-        {
-            return Response<AttendanceResponse>.Failure(
-                "An error occurred during clock-out.",
-                new List<string> { ex.Message });
-        }
+        await context.SaveChangesAsync();
+
+        return Response<AttendanceResponse>.Success(
+          MapToResponse(entity), "Clocked out successfully.");
+      }
+      catch (Exception ex)
+      {
+        return Response<AttendanceResponse>.Failure(
+          "An error occurred during clock-out.",
+          new List<string> { ex.Message });
+      }
     }
 
     // ── Today's Status ───────────────────────────────────────────────────────
 
     public async Task<Response<AttendanceResponse?>> GetTodayAttendanceAsync(int employeeId)
     {
-        try
-        {
-            var todayUtc = DateTime.UtcNow.Date;
+      try
+      {
+        var localNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
+        var todayLocal = localNow.Date;
 
-            var entity = await context.Attendances
-                .AsNoTracking()
-                .Where(a =>
-                    a.EmployeeId == employeeId &&
-                    a.ClockInTime.UtcDateTime.Date == todayUtc)
-                .FirstOrDefaultAsync();
+        var existing = await context.Attendances
+          .AsNoTracking()
+          .Where(a => a.EmployeeId == employeeId)
+          .ToListAsync();
 
-            if (entity == null)
-                return new Response<AttendanceResponse?>
-                {
-                    IsSuccess = true,
-                    Data      = null,
-                    Message   = "No attendance record found for today.",
-                };
+        var entity = existing.FirstOrDefault(a => a.ClockInTime.ToOffset(TimeSpan.FromHours(7)).Date == todayLocal);
 
-            return Response<AttendanceResponse?>.Success(
-                MapToResponse(entity), "Today's attendance retrieved successfully.");
-        }
-        catch (Exception ex)
-        {
-            return Response<AttendanceResponse?>.Failure(
-                "An error occurred while retrieving today's attendance.",
-                new List<string> { ex.Message });
-        }
+        if (entity == null)
+          return new Response<AttendanceResponse?>
+          {
+            IsSuccess = true,
+            Data      = null,
+            Message   = "No attendance record found for today.",
+          };
+
+        return Response<AttendanceResponse?>.Success(
+          MapToResponse(entity), "Today's attendance retrieved successfully.");
+      }
+      catch (Exception ex)
+      {
+        return Response<AttendanceResponse?>.Failure(
+          "An error occurred while retrieving today's attendance.",
+          new List<string> { ex.Message });
+      }
     }
 
     // ── Private Mapper ───────────────────────────────────────────────────────

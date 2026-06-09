@@ -11,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Infrastructure.Services.Auth;
 
-public class AuthService(ApplicationDbContext context) : IAuthService
+public class AuthService(ApplicationDbContext context , IFilterService filterService, ISortService sortService, IPaginationService paginationService) : IAuthService
 {
     // 🧠 ล็อกอินตรวจสอบบัญชีผู้ใช้
     public async Task<Response<TokenResponse>> LoginAsync(LoginRequest request)
@@ -110,10 +110,10 @@ public class AuthService(ApplicationDbContext context) : IAuthService
     }
 
     // 🔒 ระบบสมัครสมาชิกและแฮชรหัสผ่าน
-    public async Task<Response> RegisterAsync(LoginRequest request, string email, string role)
+    public async Task<Response> RegisterAsync(RegisterRequest request)
     {
         // 1. เช็คว่ามี Username ซ้ำในระบบหรือไม่
-        var isUserExists = await context.UserAccounts.AnyAsync(u => u.Username == request.Username);
+        var isUserExists = await context.UserAccounts.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower());
         if (isUserExists)
         {
             return new Response { IsSuccess = false, Message = "Username already exists." };
@@ -124,14 +124,13 @@ public class AuthService(ApplicationDbContext context) : IAuthService
         string hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password, salt);
 
         // 3. ประกอบข้อมูลเตรียมยัดลงตู้เซฟ PostgreSQL
-        var dbRole = await context.Roles.FirstOrDefaultAsync(r => r.Code.ToLower() == role.ToLower());
-
         var newAccount = new UserAccount
         {
             Username = request.Username,
             PasswordHash = hashedPassword,
-            Email = email,
-            RoleId = dbRole?.Id,
+            Email = request.Email,
+            RoleId = request.RoleId,
+            EmployeeId = request.EmployeeId,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
         };
@@ -193,5 +192,134 @@ public class AuthService(ApplicationDbContext context) : IAuthService
             IsSuccess = true,
             Message = "Password has been successfully updated/reset."
         };
+    }
+
+    // ดึงรายชื่อ User Accounts แบบมี Pagination และการค้นหา
+    public async Task<Response<PaginationResponse<UserAccountResponse>>> GetUserAccountsAsync(UserAccountRequest request)
+    {
+        try
+        {
+            var query = context.UserAccounts
+                .Include(u => u.Role)
+                .Include(u => u.Employee)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var search = request.Search.ToLower();
+                query = query.Where(u => u.Username.ToLower().Contains(search) || u.Email.ToLower().Contains(search));
+            }
+            
+            query = filterService.ApplyStringFilter(query, e => e.Username, request.Username);
+            query = filterService.ApplyStringFilter(query, e => e.Email, request.Email);
+
+            
+
+            // Apply sorting if specified
+            if (!string.IsNullOrWhiteSpace(request.SortBy))
+            {
+                bool desc = request.SortDirection?.ToLower() == "desc";
+                switch (request.SortBy.ToLower())
+                {
+                    case "username":
+                        query = desc ? query.OrderByDescending(u => u.Username) : query.OrderBy(u => u.Username);
+                        break;
+                    case "email":
+                        query = desc ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email);
+                        break;
+                    default:
+                        query = query.OrderByDescending(u => u.CreatedAt);
+                        break;
+                }
+            }
+            else
+            {
+                query = query.OrderByDescending(u => u.CreatedAt);
+            }
+            var pagedEntities = await paginationService.PaginateAsync(
+                query,
+                request.PageNumber,
+                request.PageSize
+            );
+            var totalRecords = await query.CountAsync();
+            
+            var items = await query
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .Select(u => new UserAccountResponse
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    Email = u.Email,
+                    RoleId = u.RoleId,
+                    RoleName = u.Role != null ? u.Role.Name : string.Empty,
+                    EmployeeId = u.EmployeeId,
+                    EmployeeName = u.Employee != null ? u.Employee.FirstName + " " + u.Employee.LastName : string.Empty,
+                    IsActive = u.IsActive,
+                    CreatedAt = u.CreatedAt
+                })
+                .ToListAsync();
+
+            var paginationResult = new PaginationResponse<UserAccountResponse>(
+                items,
+                pagedEntities.PageNumber,
+                pagedEntities.PageSize,
+                pagedEntities.TotalRecords
+            );
+            
+            return new Response<PaginationResponse<UserAccountResponse>>
+            {
+                IsSuccess = true,
+                Message = "User accounts retrieved successfully.",
+                Data = paginationResult
+            };
+        }
+        catch (Exception ex)
+        {
+            return new Response<PaginationResponse<UserAccountResponse>>
+            {
+                IsSuccess = false,
+                Message = $"Failed to retrieve user accounts: {ex.Message}"
+            };
+        }
+    }
+
+    // แก้ไขข้อมูลบัญชีผู้ใช้
+    public async Task<Response> UpdateUserAccountAsync(int id, UpdateUserAccountRequest request)
+    {
+        try
+        {
+            var user = await context.UserAccounts.FirstOrDefaultAsync(u => u.Id == id);
+            if (user == null)
+            {
+                return new Response { IsSuccess = false, Message = "User account not found." };
+            }
+
+            // Check if username is being changed and is already taken
+            if (user.Username.ToLower() != request.Username.ToLower())
+            {
+                var isUserExists = await context.UserAccounts.AnyAsync(u => u.Username.ToLower() == request.Username.ToLower() && u.Id != id);
+                if (isUserExists)
+                {
+                    return new Response { IsSuccess = false, Message = "Username already exists." };
+                }
+            }
+
+            user.Username = request.Username;
+            user.Email = request.Email;
+            user.RoleId = request.RoleId;
+            user.EmployeeId = request.EmployeeId;
+            user.IsActive = request.IsActive;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await context.SaveChangesAsync();
+
+            return new Response { IsSuccess = true, Message = "User account updated successfully." };
+        }
+        catch (Exception ex)
+        {
+            return new Response { IsSuccess = false, Message = $"Failed to update user account: {ex.Message}" };
+        }
     }
 }

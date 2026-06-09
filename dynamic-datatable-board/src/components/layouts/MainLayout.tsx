@@ -10,18 +10,16 @@ import { Button } from '@/components/ui/button';
 
 export interface MainLayoutProps {
   children: React.ReactNode;
-  currentPath?: string;
-  onNavigate?: (path: string) => void;
 }
 
-export function MainLayout({ children, currentPath = 'hrms-employees', onNavigate }: MainLayoutProps) {
+export function MainLayout({ children }: MainLayoutProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex text-slate-900 font-sans antialiased">
       {/* 1. Large Screen Sidebar (Desktop) */}
       <div className="hidden lg:block lg:w-68 xl:w-72 h-screen sticky top-0 shrink-0">
-        <Sidebar currentPath={currentPath} onNavigate={onNavigate} />
+        <Sidebar />
       </div>
 
       {/* 2. Responsive Mobile Sidebar (Drawer Overlay) */}
@@ -34,11 +32,7 @@ export function MainLayout({ children, currentPath = 'hrms-employees', onNavigat
           />
           {/* Slide-out Panel content */}
           <div className="relative w-72 h-full bg-slate-50 shadow-2xl flex flex-col z-50 animate-in slide-in-from-left duration-300">
-            <Sidebar
-              currentPath={currentPath}
-              onNavigate={onNavigate}
-              onCloseMobile={() => setMobileSidebarOpen(false)}
-            />
+            <Sidebar />
           </div>
         </div>
       )}
