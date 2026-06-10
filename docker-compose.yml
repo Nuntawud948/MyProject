@@ -1,0 +1,42 @@
+﻿services:
+  # --- 1. ตู้ฐานข้อมูล (Database) ---
+  postgres-db:
+    image: postgres:16-alpine # ดึง Image สำเร็จรูปมาจาก Docker Hub ทันที ไม่ต้องเขียน Dockerfile เอง
+    container_name: my_postgres_container
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432" # แมปพอร์ตเครื่องเรา (ซ้าย) เข้ากับพอร์ตในตู้ (ขวา)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persistent Data: เซฟข้อมูลลงเครื่องจริง ปิดคอมข้อมูลก็ไม่หาย
+
+  # --- 2. ตู้หลังบ้าน (Backend API) ---
+  backend-api:
+    build:
+      context: ./backend # บอกจุดที่ตั้งของโฟลเดอร์ที่มี Dockerfile หลังบ้าน
+      dockerfile: Dockerfile
+    container_name: my_backend_container
+    ports:
+      - "5272:8080" # แมปให้เครื่องจริงเข้าใช้งานผ่านพอร์ต 5000 (ในตู้รัน 8080)
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres-db;Database=mydatabase;Username=myuser;Password=mysecretpassword
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - postgres-db # บอก Docker ว่าให้เปิดฐานข้อมูลให้เสร็จก่อน แล้วค่อยเปิดหลังบ้านตามมา
+
+  # --- 3. ตู้หน้าบ้าน (Frontend UI) ---
+  frontend-ui:
+    build:
+      context: ./dynamic-datatable-board # บอกจุดที่ตั้งของโฟลเดอร์ที่มี Dockerfile หน้าบ้าน
+      dockerfile: Dockerfile
+    container_name: my_frontend_container
+    ports:
+      - "3000:80" # แมปให้เครื่องจริงเข้าใช้งานหน้าเว็บผ่านพอร์ต 3000 (ในตู้รัน 80)
+    depends_on:
+      - backend-api
+
+# ประกาศการใช้งาน Volume กลางเพื่อเก็บรักษาข้อมูลของ PostgreSQL
+volumes:
+  postgres_data:
