@@ -31,14 +31,8 @@ export function ProfileScreen() {
       {/* ── TopAppBar ──────────────────────────────────────────────────── */}
       <View style={[styles.topAppBar, { paddingTop: insets.top, height: Theme.spacing.touchTarget + insets.top }]}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={styles.backBtn}>
-            <MaterialIcons name="arrow-back" size={24} color={Theme.colors.primary} />
-          </TouchableOpacity>
           <Text style={styles.appBarTitle}>Employee Profile</Text>
         </View>
-        <TouchableOpacity style={styles.settingsBtn} activeOpacity={0.7}>
-          <MaterialIcons name="settings" size={24} color={Theme.colors.primary} />
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>

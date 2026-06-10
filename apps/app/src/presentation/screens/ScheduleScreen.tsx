@@ -192,7 +192,7 @@ export function ScheduleScreen() {
           <View style={styles.legendContainer}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: Theme.colors.tertiaryContainer }]} />
-              <Text style={styles.legendText}>Government Holidays</Text>
+              <Text style={styles.legendText}>Holidays</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: Theme.colors.primaryContainer }]} />

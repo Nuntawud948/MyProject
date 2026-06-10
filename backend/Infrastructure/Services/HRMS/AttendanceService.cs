@@ -1,5 +1,6 @@
 using Application.Common.Interfaces.HRMS;
 using Application.Common.Models;
+using Application.Common.Utils;
 using Application.Dtos.HRMS;
 using Domain.Entities.HRMS;
 using Infrastructure.Database;
@@ -33,15 +34,12 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
         }
 
         // Prevent duplicate clock-in for today (using local offset representation for the employee)
-        var localNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
-        var todayLocal = localNow.Date;
+        var (startOfToday, endOfToday) = DateTimeHelper.GetThailandTodayUtcBoundaries();
         
-        var existing = await context.Attendances
-          .AsNoTracking()
-          .Where(a => a.EmployeeId == request.EmployeeId)
-          .ToListAsync();
-
-        var clockedInToday = existing.Any(a => a.ClockInTime.ToOffset(TimeSpan.FromHours(7)).Date == todayLocal);
+        var clockedInToday = await context.Attendances
+          .AnyAsync(a => a.EmployeeId == request.EmployeeId && 
+                         a.ClockInTime >= startOfToday && 
+                         a.ClockInTime < endOfToday);
 
         if (clockedInToday)
           return Response<AttendanceResponse>.Failure(
@@ -50,7 +48,7 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
         var entity = new Attendance
         {
           EmployeeId      = request.EmployeeId,
-          ClockInTime     = DateTimeOffset.UtcNow,
+          ClockInTime     = DateTime.Now,
           Latitude        = request.Latitude,
           Longitude       = request.Longitude,
           CheckInMethod   = request.CheckInMethod,
@@ -58,7 +56,7 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
           ImageUrl        = request.ImageUrl,
           // Auto check-ins are pre-approved; Manual require manager review
           IsApproved      = request.CheckInMethod == "Auto",
-          CreatedAt       = DateTime.UtcNow,
+          CreatedAt       = DateTime.Now,
         };
 
         context.Attendances.Add(entity);
@@ -81,21 +79,20 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
     {
       try
       {
-        var localNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
-        var todayLocal = localNow.Date;
+        var (startOfToday, endOfToday) = DateTimeHelper.GetThailandTodayUtcBoundaries();
 
-        var existing = await context.Attendances
-          .Where(a => a.EmployeeId == request.EmployeeId && a.ClockOutTime == null)
-          .ToListAsync();
-
-        var entity = existing.FirstOrDefault(a => a.ClockInTime.ToOffset(TimeSpan.FromHours(7)).Date == todayLocal);
+        var entity = await context.Attendances
+          .FirstOrDefaultAsync(a => a.EmployeeId == request.EmployeeId && 
+                                    a.ClockOutTime == null && 
+                                    a.ClockInTime >= startOfToday && 
+                                    a.ClockInTime < endOfToday);
 
         if (entity == null)
           return Response<AttendanceResponse>.Failure(
             "No open attendance record found for today. Please clock in first.");
 
-        entity.ClockOutTime = DateTimeOffset.UtcNow;
-        entity.UpdatedAt    = DateTime.UtcNow;
+        entity.ClockOutTime = DateTime.Now;
+        entity.UpdatedAt    = DateTime.Now;
 
         await context.SaveChangesAsync();
 
@@ -116,15 +113,13 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
     {
       try
       {
-        var localNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
-        var todayLocal = localNow.Date;
+        var (startOfToday, endOfToday) = DateTimeHelper.GetThailandTodayUtcBoundaries();
 
-        var existing = await context.Attendances
+        var entity = await context.Attendances
           .AsNoTracking()
-          .Where(a => a.EmployeeId == employeeId)
-          .ToListAsync();
-
-        var entity = existing.FirstOrDefault(a => a.ClockInTime.ToOffset(TimeSpan.FromHours(7)).Date == todayLocal);
+          .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && 
+                                    a.ClockInTime >= startOfToday && 
+                                    a.ClockInTime < endOfToday);
 
         if (entity == null)
           return new Response<AttendanceResponse?>
@@ -151,15 +146,15 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
     {
         Id            = a.Id,
         EmployeeId    = a.EmployeeId,
-        ClockInTime   = a.ClockInTime,
-        ClockOutTime  = a.ClockOutTime,
+        ClockInTime   = DateTimeHelper.EnsureUtc(a.ClockInTime.DateTime),
+        ClockOutTime  = DateTimeHelper.EnsureUtc(a.ClockOutTime?.DateTime),
         Latitude      = a.Latitude,
         Longitude     = a.Longitude,
         CheckInMethod = a.CheckInMethod,
         ImageUrl      = a.ImageUrl,
         Reason        = a.Reason,
         IsApproved    = a.IsApproved,
-        CreatedAt     = a.CreatedAt,
-        UpdatedAt     = a.UpdatedAt,
+        CreatedAt     = DateTimeHelper.EnsureUtc(a.CreatedAt),
+        UpdatedAt     = DateTimeHelper.EnsureUtc(a.UpdatedAt),
     };
 }

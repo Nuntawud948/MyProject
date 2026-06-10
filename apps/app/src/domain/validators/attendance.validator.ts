@@ -22,8 +22,9 @@ export function validateClockIn(
 ): ValidationResult {
   const errors: string[] = [];
 
-  if (!request.employeeId || String(request.employeeId).trim().length === 0) {
-    errors.push('employeeId is required.');
+  const empIdNum = Number(request.employeeId);
+  if (isNaN(empIdNum) || !Number.isInteger(empIdNum) || empIdNum <= 0) {
+    errors.push('employeeId must be a valid, positive integer.');
   }
 
   if (request.latitude < -90 || request.latitude > 90) {
