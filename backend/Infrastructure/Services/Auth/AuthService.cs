@@ -46,11 +46,7 @@ public class AuthService : IAuthService
             return new Response<TokenResponse> { IsSuccess = false, Message = $"Debug Error: บัญชี '{request.Username}' ไม่มีอยู่จริง" };
         }
 
-        if (request.Username.ToLower() == "admin" && request.Password == "Password123!")
-        {
-            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(account);
-            await _userManager.ResetPasswordAsync(account, resetToken, "Password123!");
-        }
+   
 
         bool isPasswordValid = await _userManager.CheckPasswordAsync(account, request.Password);
         if (!isPasswordValid)

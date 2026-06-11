@@ -1,13 +1,13 @@
 using Application.Common.Interfaces;
 using Application.Common.Interfaces.HRMS;
 using Application.Dtos.HRMS;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Web.Extensions; // 👈 อย่าลืมดึง Extension ตัวแกะกุญแจมาใช้
 
 namespace Web.Controllers.HRMS;
 
-/// <summary>
-/// Attendance endpoints — Clock-In (multipart/form-data), Clock-Out (JSON), Today Status.
-/// </summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class AttendancesController(
@@ -16,23 +16,24 @@ public class AttendancesController(
     IWebHostEnvironment env
 ) : ControllerBase
 {
-    /// <summary>
-    /// Multipart/form-data clock-in endpoint.
-    /// Structural fields are bound via [FromForm]; the photo file is bound as IFormFile.
-    /// ImageSharp processes the stream server-side before persisting the record.
-    /// </summary>
     // POST api/attendances/clock-in
     [HttpPost("clock-in")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> ClockIn([FromForm] ClockInRequestDto form)
     {
-        // ── Server-Side Image Processing (ImageSharp pipeline) ───────────────
+        // 🔥 1. แกะรหัสพนักงานตัวจริงเสียงจริง จาก JWT Token เท่านั้น!
+        var currentEmployeeId = User.GetEmployeeId();
+        if (currentEmployeeId == null) 
+            return Unauthorized(new { IsSuccess = false, Message = "ไม่พบข้อมูลพนักงานใน Token" });
+
         string? imageUrl = null;
 
         if (form.ImageFile is not null && form.ImageFile.Length > 0)
         {
             var uploadsDir = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads", "attendance");
-            var filename   = $"clock-in-{form.EmployeeId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            
+            // 🔥 ใช้ ID จริงจาก Token ในการตั้งชื่อไฟล์ ป้องกันการสวมรอยชื่อไฟล์
+            var filename = $"clock-in-{currentEmployeeId.Value}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
             using var stream = form.ImageFile.OpenReadStream();
             imageUrl = await imageService.ProcessAndSaveAsync(
@@ -40,14 +41,14 @@ public class AttendancesController(
                 filename       : filename,
                 saveDirectory  : uploadsDir,
                 maxWidthPx     : 1024,
-                qualityPercent : 80   // secondary compression after mobile's 60%
+                qualityPercent : 80   
             );
         }
 
-        // ── Build application-layer request ──────────────────────────────────
         var request = new ClockInRequest
         {
-            EmployeeId    = form.EmployeeId,
+            // 🔥 ยัด ID จาก Token ลงไปใน Application Request (ไม่สนว่าหน้าบ้านจะส่งอะไรมา)
+            EmployeeId    = currentEmployeeId.Value, 
             Latitude      = form.Latitude,
             Longitude     = form.Longitude,
             CheckInMethod = form.CheckInMethod,
@@ -61,39 +62,47 @@ public class AttendancesController(
         return Ok(result);
     }
 
-    /// <summary>Clock-out — resolves the open record for today by employeeId.</summary>
     // POST api/attendances/clock-out
     [HttpPost("clock-out")]
     public async Task<IActionResult> ClockOut([FromBody] ClockOutRequest request)
     {
+        // 🔥 2. ดักการลงเวลาออกแทนกัน
+        var currentEmployeeId = User.GetEmployeeId();
+        if (currentEmployeeId == null) 
+            return Unauthorized(new { IsSuccess = false, Message = "ไม่พบข้อมูลพนักงาน" });
+
+        // บังคับเขียนทับ EmployeeId ใน request ด้วย ID จริงจาก Token เสมอ
+        request.EmployeeId = currentEmployeeId.Value;
+
         var result = await attendanceService.ClockOutAsync(request);
 
         if (!result.IsSuccess) return BadRequest(result);
         return Ok(result);
     }
 
-    /// <summary>Returns today's attendance record for the given employee (or null).</summary>
-    // GET api/attendances/today/{employeeId}
-    [HttpGet("today/{employeeId:int}")]
-    public async Task<IActionResult> GetToday(int employeeId)
+    // GET api/attendances/today
+    // 🔥 3. ลบ {employeeId:int} ออกจาก URL ไม่ต้องให้ผู้ใช้บอกว่าตัวเองคือใคร!
+    [HttpGet("today")] 
+    public async Task<IActionResult> GetToday()
     {
-        var result = await attendanceService.GetTodayAttendanceAsync(employeeId);
+        var currentEmployeeId = User.GetEmployeeId();
+        if (currentEmployeeId == null) 
+            return Unauthorized();
+
+        // ดึงสถานะของพนักงานที่ล็อกอินอยู่เท่านั้น
+        var result = await attendanceService.GetTodayAttendanceAsync(currentEmployeeId.Value);
         return Ok(result);
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Multipart Form DTO (Web-layer only — contains IFormFile)
+// Multipart Form DTO (Web-layer only)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>
-/// Web-layer DTO that consumes multipart/form-data from the mobile client.
-/// Each property is decorated with [FromForm] to unpack form fields;
-/// ImageFile is bound as an IFormFile stream.
-/// </summary>
 public class ClockInRequestDto
 {
-    [FromForm] public int      EmployeeId    { get; set; }
+  
+    
     [FromForm] public decimal  Latitude      { get; set; }
     [FromForm] public decimal  Longitude     { get; set; }
     [FromForm] public string   CheckInMethod { get; set; } = string.Empty;

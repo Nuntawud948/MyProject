@@ -161,7 +161,7 @@ export function UserAccountPage() {
     const response = await userAccountApi.getUsers(params);
     const serverPayload = response.data;
     const rawItems = serverPayload?.items || [];
-
+    console.log(rawItems);
     const mappedItems: UserAccountResponse[] = rawItems.map((item: any) => ({
       id: item.id || item.Id,
       username: item.username || item.Username || '',

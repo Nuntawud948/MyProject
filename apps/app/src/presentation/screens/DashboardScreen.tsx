@@ -277,14 +277,7 @@ export function DashboardScreen() {
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const getExpectedDeparture = () => {
-    if (todayRecord?.clockInTime) {
-      const inTime = new Date(todayRecord.clockInTime);
-      inTime.setHours(inTime.getHours() + 8);
-      return inTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    return '05:45 PM';
-  };
+ 
 
   // Default fallback user image
   const userAvatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCMkTtQ960cOCGlzHxlU1cbnc8LaSU2dtSIzg0tH8Jid5W3ZFFu25NYOKQJAZzD0juYjZbkwSiTpli33CewD4Lsole7MW_eCBNFHcXjGtKQ5Xr4V9YIVyb5OkBaqX88W2-ch0-ZEtTtHehhhMbwL-Ak5KGagrR6LtuQGKwRhr1x5ly2GJhah3uIZrsuR6hQL3YshSsHVPrq07ccn2iwCEUxQG8yRmeUDinvz6VI7oiTcNdBt9mUFI_k0Dwcx5qyDsDl8r1D696BXqI';
@@ -579,21 +572,7 @@ export function DashboardScreen() {
               </View>
             )}
 
-            {/* Expected Departure Card */}
-            <View style={[styles.activityCard, styles.activityCardDashed]}>
-              <View style={[styles.activityLeft, { opacity: 0.6 }]}>
-                <View style={styles.activityIconBoxGray}>
-                  <MaterialIcons name="timer" size={22} color={Theme.colors.outline} />
-                </View>
-                <View>
-                  <Text style={styles.activityNameText}>Expected Departure</Text>
-                  <Text style={styles.activitySubText}>Based on 8h shift</Text>
-                </View>
-              </View>
-              <View style={[styles.activityRight, { opacity: 0.6 }]}>
-                <Text style={styles.activityTimeText}>{getExpectedDeparture()}</Text>
-              </View>
-            </View>
+         
           </View>
         </View>
       </ScrollView>

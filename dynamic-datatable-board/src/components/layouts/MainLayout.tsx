@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
-import { Button } from '@/components/ui/button';
 
 export interface MainLayoutProps {
   children: React.ReactNode;
@@ -14,12 +13,13 @@ export interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex text-slate-900 font-sans antialiased">
       {/* 1. Large Screen Sidebar (Desktop) */}
-      <div className="hidden lg:block lg:w-68 xl:w-72 h-screen sticky top-0 shrink-0">
-        <Sidebar />
+      <div className={`hidden lg:block h-screen sticky top-0 shrink-0 transition-all duration-300 ${isCollapsed ? 'lg:w-20' : 'lg:w-68 xl:w-72'}`}>
+        <Sidebar isCollapsed={isCollapsed} onToggleCollapse={() => setIsCollapsed(!isCollapsed)} />
       </div>
 
       {/* 2. Responsive Mobile Sidebar (Drawer Overlay) */}
@@ -39,19 +39,18 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* 3. Main Content Wrapper */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 shadow-xs">
-          {/* Leftside Controls: Mobile toggle */}
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              className="lg:hidden h-9 w-9 text-slate-600 border-slate-200"
-              onClick={() => setMobileSidebarOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+        {/* Top Navbar for Mobile/Tablet */}
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-slate-900 text-white border-b border-slate-800 shrink-0 sticky top-0 z-40 shadow-sm">
+          <div className="flex items-center gap-3">
+            <h1 className="text-md font-bold text-blue-500">HR System</h1>
           </div>
+          <button
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+            title="เปิดเมนูการนำทาง"
+          >
+            <Menu size={20} />
+          </button>
         </header>
 
         {/* Dynamic Outlet rendering or page children content */}

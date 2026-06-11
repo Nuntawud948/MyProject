@@ -11,10 +11,9 @@ import { LeaveDashboardPage } from './features/hrms/pages/LeaveDashboardPage';
 import { CompanyHolidayDashboardPage } from './features/hrms/pages/CompanyHolidayDashboardPage';
 import { GeofenceDashboardPage } from './features/hrms/pages/GeofenceDashboardPage';
 import { RoleManagementPage } from './features/setup/pages/RoleManagementPage';
-import LoginPage from './features/auth/pages/LoginPage';
+import Login from './features/auth/pages/Login';
 import ProtectedRoute from './components/shared/data-table/ProtectedRoute';
-import { CalendarDays, Clock, UserCheck } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import {  Clock  } from 'lucide-react';
 import TestPage from "@/features/setup/TestPage.tsx";
 import { UserAccountPage } from './features/setup/UserAccount/UserAccountPage';
 
@@ -23,53 +22,13 @@ function DashboardContent() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-xl shadow-xs">
-        <h3 className="text-xl font-bold text-slate-800">Vertex Core Dashboard</h3>
+        <h3 className="text-xl font-bold text-slate-800"> Welcome to your HRMS Workspace</h3>
         <p className="text-sm text-slate-500 mt-2 max-w-2xl leading-relaxed">
           Welcome to your HRMS Workspace. This screen contains general organization widgets, active headcounts, system load telemetry, and database clusters diagnostics.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <div className="p-5 border border-slate-200/80 rounded-lg bg-slate-50/75 shadow-3xs">
-            <div className="flex items-center gap-2 text-slate-700 font-bold mb-3 text-sm">
-              <UserCheck className="h-4.5 w-4.5 text-slate-850" />
-              <span>Resource Health Matrix</span>
-            </div>
-            <p className="text-xs text-slate-500 leading-normal mb-4">
-              Track the operational efficiency of the system and see memory utilization indicators in microservices.
-            </p>
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-600 font-medium">Core API Gateway Port 5272:</span>
-                <Badge variant="success">ACTIVE</Badge>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-600 font-medium">PostgreSQL UMS & HRMS Scheme:</span>
-                <Badge variant="success">HEALTHY</Badge>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-5 border border-slate-200/80 rounded-lg bg-slate-50/75 shadow-3xs">
-            <div className="flex items-center gap-2 text-slate-700 font-bold mb-3 text-sm">
-              <CalendarDays className="h-4.5 w-4.5 text-slate-855" />
-              <span>Pending Action Items</span>
-            </div>
-            <p className="text-xs text-slate-500 leading-normal mb-4">
-              Urgent items awaiting review before the next payslip settlement run.
-            </p>
-            <div className="text-xs text-slate-400 italic py-2 text-center select-none">
-              All compliance requests have been successfully actioned.
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className="bg-slate-900 text-white rounded-xl p-5 md:p-6 shadow-sm border border-slate-850">
-        <h4 className="text-sm font-bold text-emerald-400">Navigation Hint</h4>
-        <p className="text-xs text-slate-350 mt-1 max-w-xl leading-relaxed">
-          Operational Datatable ready. Navigate through the sidebar menu to process live filtering, column sort, server-side data virtualization, or log out of your session securely.
-        </p>
-      </div>
     </div>
   );
 }
@@ -96,7 +55,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* 🚪 1. Public Route */}
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<Login />} />
 
         {/* 🛡️ 2. Protected Route Layer (ทหารยามคุมประตู) */}
         <Route element={<ProtectedRoute />}>
