@@ -1,20 +1,20 @@
+using System.Text;
 using Application.Common.Interfaces;
 using Application.Common.Interfaces.HRMS;
 using Infrastructure.Database;
 using Infrastructure.Services.Auth;
 using Infrastructure.Services.Common;
 using Infrastructure.Services.Hrms;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-/*"applicationUrl": "http://localhost:5272",*/
+using Microsoft.IdentityModel.Tokens;
+
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. ตั้งชื่อ Policy ให้ชัดเจน (เก็บไว้ในตัวแปร จะได้ไม่พิมพ์ผิดตอนเรียกใช้)
-var AllowFrontendPolicy = "AllowFrontend";
 
-// 1. รวม CORS ไว้ที่เดียว และอ่านจาก Config (Development หรือ Environment Variables)
-// ใช้ ?? new string[] { } เพื่อป้องกันค่าว่าง
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new string[] { };
 
 builder.Services.AddCors(options =>
@@ -24,21 +24,64 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins)
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials(); // สำคัญถ้ามีการใช้ Auth/Cookies
+            .AllowCredentials(); 
     });
 });
 
 
-
-// 2. เชื่อมต่อ PostgreSQL และบังคับให้ตาราง History อยู่ที่ public schema
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        x => x.MigrationsHistoryTable("__EFMigrationsHistory", "public") // 👈 ระบุชื่อตาราง และชื่อ Schema ชัดเจน
-    )
-);
+        npgsqlOptions => 
+        {
+            // รวมคอนฟิกทั้งสองอย่างไว้ในบล็อกเดียวกันอย่างถูกต้องตามสไตล์ Senior
+            npgsqlOptions.MigrationsAssembly("Infrastructure");
+            npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "public");
+        }
+    ));
 
-// 3. ลงทะเบียน Service (บอกระบบว่าถ้ามีคนขอ IEmployeeService ให้เรียกใช้ EmployeeService)
+// =========================================================================
+// 3. ระบบ Identity Core & Authentication (เพิ่มใหม่สำหรับสเต็ป 1.1 & 1.2)
+// =========================================================================
+// 3.1 เพิ่ม Microsoft Identity Services บังคับระดับความปลอดภัยรหัสผ่าน
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 8;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
+
+// 3.2 ตั้งค่าระบบตรวจสอบสิทธิ์ผ่าน JWT Bearer Token เพื่อส่งสิทธิ์ไปหา React หน้าบ้าน
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["Secret"] ?? "YourSuperSecretKeyThatIsLongEnough2026Enterprise!"; 
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"] ?? "MyProjectBackend",
+        ValidAudience = jwtSettings["Audience"] ?? "MyProjectFrontend",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.Zero // ป้องกันเวลาเลื่อมล้ำ เพื่อให้ Token หมดอายุตรงเป้าทันที ปลอดภัยสูงสุด
+    };
+});
+
+// =========================================================================
+// 4. DI Services Registration
+// =========================================================================
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
@@ -55,17 +98,21 @@ builder.Services.AddScoped<ICompanyHolidayService, CompanyHolidayService>();
 builder.Services.AddScoped<IGeofenceService, GeofenceService>();
 builder.Services.AddSingleton<IImageService, ImageService>();
 
-// ลงทะเบียนระบบสิทธิ์และยืนยันตัวตน UMS
+// ── User Management System & Auth
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// 4. ตั้งค่า Controller และ Swagger (หน้าเว็บสำหรับเทสต์ API)
+// =========================================================================
+// 5. Controller & OpenAPI / Swagger
+// =========================================================================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// =========================================================================
+// 6. HTTP Request Pipeline (Middleware)
+// =========================================================================
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger"))
 {
     app.UseSwagger();
@@ -73,14 +120,16 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 }
 
 app.UseHttpsRedirection();
-
-// Serve uploaded attendance images from wwwroot/uploads
 app.UseStaticFiles();
 
-// เปิดใช้งาน CORS
+// เปิดใช้งาน CORS ก่อนทำการ Auth
 app.UseCors("CorsPolicy");
 
+// 💡 Senior Tip: ลำดับ Middleware ตรงนี้สำคัญมากใน .NET! 
+// ต้องเรียกใช้ Authentication (ตรวจป้าย) ก่อน Authorization (เช็คสิทธิ์ทำ) เสมอ
+app.UseAuthentication(); 
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
