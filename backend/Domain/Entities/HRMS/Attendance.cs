@@ -43,6 +43,6 @@ public class Attendance
     public bool IsApproved { get; set; }
 
     // ── Audit Columns ────────────────────────────────────────────────────────
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? UpdatedAt { get; set; }
 }

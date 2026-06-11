@@ -134,7 +134,7 @@ public class EmployeeService(
                     Email = e.WorkEmail ?? "",
                     DepartmentName = e.Department != null ? e.Department.Name : "-",
                     Position = e.Role != null ? e.Role.Name : "-",
-                    StartDate = e.StartDate ?? DateTime.UtcNow,
+                    StartDate = e.StartDate ?? DateTime.Now,
                     IsActive = e.IsActive,
                     PhoneNumber = "-"
                 })
@@ -165,7 +165,7 @@ public class EmployeeService(
             var totalCount = await context.Employees.CountAsync();
             var activeCount = await context.Employees.CountAsync(e => e.IsActive);
             
-            var newHiresCutoff = DateTime.UtcNow.AddDays(-365);
+            var newHiresCutoff = DateTime.Now.AddDays(-365);
             var newHiresCount = await context.Employees.CountAsync(e => e.StartDate >= newHiresCutoff);
 
             var stats = new EmployeeStatsResponse

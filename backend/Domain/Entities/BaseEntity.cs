@@ -23,6 +23,6 @@ public abstract class BaseEntity
     protected BaseEntity()
     {
         IsActive = true;
-        CreatedAt = DateTime.UtcNow; // ใช้ UTC มาตรฐานสากล
+        CreatedAt = DateTime.Now; // ใช้เวลา Local ของเซิร์ฟเวอร์
     }
 }

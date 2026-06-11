@@ -167,7 +167,7 @@ public class LeaveService(
             entity.Name = request.Name;
             entity.Description = request.Description;
             entity.MaxDaysPerYear = request.MaxDaysPerYear;
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.Now;
 
             await context.SaveChangesAsync();
 
@@ -200,7 +200,7 @@ public class LeaveService(
                 return new Response<bool> { IsSuccess = false, Message = "Leave type not found.", Data = false };
 
             entity.IsActive = false; // Soft delete
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.Now;
             await context.SaveChangesAsync();
 
             return new Response<bool> { IsSuccess = true, Data = true, Message = "Leave type deleted successfully." };
@@ -467,7 +467,7 @@ public class LeaveService(
 
             entity.FirstApprovalStatus = request.Status;
             entity.FirstApprovalReason = request.Remarks;
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.Now;
 
             // If first level rejected → overall rejected immediately
             if (request.Status == "Rejected")
@@ -504,7 +504,7 @@ public class LeaveService(
 
             entity.SecondApprovalStatus = request.Status;
             entity.SecondApprovalReason = request.Remarks;
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.Now;
 
             if (request.Status == "Approved" && entity.FirstApprovalStatus == "Approved")
             {
@@ -551,7 +551,7 @@ public class LeaveService(
             .Where(lt => lt.IsActive)
             .ToListAsync();
 
-        var today = DateTime.UtcNow.Date;
+        var today = DateTime.Today;
 
         var balances = leaveTypes.Select(lt =>
         {
@@ -599,7 +599,7 @@ public class LeaveService(
     /// <inheritdoc/>
     public async Task ProcessYearlyLeaveRolloverAsync()
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateTime.Today;
 
         var balances = await context.LeaveBalances
             .Include(lb => lb.LeaveType)
@@ -647,7 +647,7 @@ public class LeaveService(
                 balance.AllocatedHours = leaveType.MaxDaysPerYear * 8m;
             }
 
-            balance.UpdatedAt = DateTime.UtcNow;
+            balance.UpdatedAt = DateTime.Now;
         }
 
         await context.SaveChangesAsync();
@@ -665,7 +665,7 @@ public class LeaveService(
         if (balance != null)
         {
             balance.UsedHours += hours;
-            balance.UpdatedAt = DateTime.UtcNow;
+            balance.UpdatedAt = DateTime.Now;
         }
     }
 

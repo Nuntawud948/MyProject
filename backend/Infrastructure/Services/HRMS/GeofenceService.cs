@@ -127,7 +127,7 @@ public class GeofenceService(
             }
 
             GeofenceMapper.Instance.UpdateEntity(request, geofence);
-            geofence.UpdatedAt = DateTime.UtcNow;
+            geofence.UpdatedAt = DateTime.Now;
 
             await context.SaveChangesAsync();
 
@@ -157,7 +157,7 @@ public class GeofenceService(
             }
 
             geofence.IsActive = false; // Soft delete
-            geofence.UpdatedAt = DateTime.UtcNow;
+            geofence.UpdatedAt = DateTime.Now;
             await context.SaveChangesAsync();
 
             return new Response<bool> { IsSuccess = true, Data = true, Message = "Geofence soft-deleted successfully." };
