@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 
+const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
 /**
  * Custom hook to monitor user inactivity and automatically log them out.
  * 
@@ -15,8 +17,6 @@ export function useSessionTimeout() {
   const logout = useAuthStore((state) => state.logout);
   const isAuthenticated = useAuthStore((state) => !!state.token);
 
-  const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-
   // Memoized callback to reset the inactivity timer
   const resetTimer = useCallback(() => {
     if (timeoutId.current) {
@@ -28,7 +28,7 @@ export function useSessionTimeout() {
       logout();
       navigate('/login', { replace: true });
     }, TIMEOUT_MS);
-  }, [logout, navigate, TIMEOUT_MS]);
+  }, [logout, navigate]);
 
   useEffect(() => {
     // Only set up listeners if the user is authenticated

@@ -92,7 +92,16 @@ export function useAttendance(employeeId: string) {
    * @param imageUri Optional raw camera URI — will be optimised before upload
    */
   const clockIn = useCallback(
-    async (request: ClockInRequest, imageUri?: string) => {
+    async (request: ClockInRequest, imageUri: string) => {
+      // ── Mandatory Photo Guard ──────────────────────────────────────────
+      if (!imageUri) {
+        setState(prev => ({
+          ...prev,
+          error: 'กรุณาถ่ายรูปเซลฟี่เพื่อยืนยันตัวตนก่อนลงเวลาทุกครั้ง',
+        }));
+        return;
+      }
+
       // Domain validation first
       const validation = validateClockIn(request);
       if (!validation.valid) {
@@ -132,10 +141,22 @@ export function useAttendance(employeeId: string) {
   );
 
   /** Clock out — resolves the open record server-side. */
-  const clockOut = useCallback(async () => {
-    const request: ClockOutRequest = { employeeId };
+  const clockOut = useCallback(async (imageUri: string) => {
+    // ── Mandatory Photo Guard ──────────────────────────────────────────
+    if (!imageUri) {
+      setState(prev => ({
+        ...prev,
+        error: 'กรุณาถ่ายรูปเซลฟี่เพื่อยืนยันตัวตนก่อนลงเวลาทุกครั้ง',
+      }));
+      return;
+    }
+
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
+      const timestamp = Date.now();
+      const imageFile = await optimiseImage(imageUri, `clock-out-${timestamp}`);
+      const request: ClockOutRequest = { employeeId, imageFile };
+
       const record = await submitClockOut(request);
       setState(prev => ({
         ...prev,

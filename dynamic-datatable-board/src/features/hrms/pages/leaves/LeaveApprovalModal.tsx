@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, CheckSquare, MessageSquare } from 'lucide-react';
 import { CustomButton } from '@/components/custom/CustomButton';
-import { leave } from '@/api/hrms/leave';
+import { useApproveLeaveMutation } from '../../hooks/useLeaveMutations';
 import type { LeaveRequestDto } from '@/dto/hrms/leaveRequest';
 
 interface LeaveApprovalModalProps {
@@ -21,32 +21,26 @@ export function LeaveApprovalModal({
 }: LeaveApprovalModalProps) {
   const [decision, setDecision] = useState<'Approved' | 'Rejected'>('Approved');
   const [remarks, setRemarks] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const approveMutation = useApproveLeaveMutation();
 
   if (!isOpen || !request) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        status: decision,
-        remarks: remarks || undefined,
-      };
+    
+    // 1. Fire the mutation
+    approveMutation.mutate({
+      requestId: request.id,
+      approvalLevel,
+      decision,
+      remarks,
+    });
 
-      if (approvalLevel === 'first') {
-        await leave.approveFirstLevel(request.id, payload);
-      } else {
-        await leave.approveSecondLevel(request.id, payload);
-      }
-
-      await onApprove();
-      onClose();
-    } catch (err) {
-      console.error('Approval submission failed', err);
-    } finally {
-      setIsSubmitting(false);
-    }
+    // 2. Call parent callback for any extra side-effects (e.g. datatable refresh)
+    onApprove();
+    
+    // 3. Close immediately! Optimistic UI handles the rest
+    onClose();
   };
 
   const formattedStartDate = new Date(request.startDate).toLocaleString('en-US', {
@@ -190,7 +184,7 @@ export function LeaveApprovalModal({
             type="button"
             onClick={handleSubmit}
             variant={decision === 'Approved' ? 'primary' : 'danger'}
-            isLoading={isSubmitting}
+            isLoading={approveMutation.isPending}
             className="text-xs font-bold px-5 py-2.5"
           >
             Confirm Decision

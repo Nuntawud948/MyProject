@@ -31,6 +31,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../hooks/useAttendance';
 import { ManualCheckInModal } from '../components/attendance/ManualCheckInModal';
 import { ConfirmationDialog } from '../components/attendance/ConfirmationDialog';
+import { SelfieModal } from '../components/attendance/SelfieModal';
 import { Theme } from '../theme';
 import { getActiveGeofences } from '../../data/apis/attendance.api';
 import type { GeofenceResponse } from '../../data/dtos/attendance/geofence.response';
@@ -76,8 +77,7 @@ export function DashboardScreen() {
 
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [showManualModal, setShowManualModal] = useState(false);
-  const [showInConfirm, setShowInConfirm] = useState(false);
-  const [showOutConfirm, setShowOutConfirm] = useState(false);
+  const [selfieContext, setSelfieContext] = useState<'clockIn' | 'clockOut' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState('');
   
@@ -239,27 +239,27 @@ export function DashboardScreen() {
       return;
     }
 
-    setShowInConfirm(true);
+    setSelfieContext('clockIn');
   };
 
-  const executeAutoClockIn = async () => {
-    setShowInConfirm(false);
+  const executeAutoClockIn = async (imageUri: string) => {
+    setSelfieContext(null);
     if (!coords) return;
     await clockIn({
       employeeId,
       latitude: coords.latitude,
       longitude: coords.longitude,
       checkInMethod: 'Auto',
-    });
+    }, imageUri);
   };
 
   const handleClockOut = () => {
-    setShowOutConfirm(true);
+    setSelfieContext('clockOut');
   };
 
-  const executeClockOut = async () => {
-    setShowOutConfirm(false);
-    await clockOut();
+  const executeClockOut = async (imageUri: string) => {
+    setSelfieContext(null);
+    await clockOut(imageUri);
   };
 
 
@@ -621,28 +621,13 @@ export function DashboardScreen() {
         onCancel={() => setShowManualModal(false)}
       />
 
-      {/* ── Auto Check-In Confirmation Dialog ──────────────────────────────── */}
-      <ConfirmationDialog
-        visible={showInConfirm}
-        title="Check-In Confirmation"
-        message={`Are you sure you want to clock in at your current location?\n\nZone: ${nearestGeofence ? nearestGeofence.name : 'Active Geofence'}`}
-        iconName="login"
-        confirmText="Check In"
-        cancelText="Cancel"
-        onConfirm={executeAutoClockIn}
-        onCancel={() => setShowInConfirm(false)}
-      />
-
-      {/* ── Check-Out Confirmation Dialog ─────────────────────────────────── */}
-      <ConfirmationDialog
-        visible={showOutConfirm}
-        title="Check-Out Confirmation"
-        message="Are you sure you want to clock out and end your shift?"
-        iconName="logout"
-        confirmText="Check Out"
-        cancelText="Cancel"
-        onConfirm={executeClockOut}
-        onCancel={() => setShowOutConfirm(false)}
+      {/* ── Auto Check-In / Check-Out Selfie Modal ───────────────────────── */}
+      <SelfieModal
+        visible={selfieContext !== null}
+        title={selfieContext === 'clockIn' ? "Check-In Verification" : "Check-Out Verification"}
+        subtitle={`Please capture a selfie to confirm your ${selfieContext === 'clockIn' ? 'Check-In' : 'Check-Out'}.\n${selfieContext === 'clockIn' && nearestGeofence ? `Zone: ${nearestGeofence.name}` : ''}`}
+        onConfirm={selfieContext === 'clockIn' ? executeAutoClockIn : executeClockOut}
+        onCancel={() => setSelfieContext(null)}
       />
     </View>
   );

@@ -66,16 +66,38 @@ public class AttendancesController(
 
     // POST api/attendances/clock-out
     [HttpPost("clock-out")]
+    [Consumes("multipart/form-data")]
     [EnableRateLimiting("CheckInPolicy")]
-    public async Task<IActionResult> ClockOut([FromBody] ClockOutRequest request)
+    public async Task<IActionResult> ClockOut([FromForm] ClockOutRequestDto form)
     {
         // 🔥 2. ดักการลงเวลาออกแทนกัน
         var currentEmployeeId = User.GetEmployeeId();
         if (currentEmployeeId == null) 
             return Unauthorized(new { IsSuccess = false, Message = "ไม่พบข้อมูลพนักงาน" });
 
-        // บังคับเขียนทับ EmployeeId ใน request ด้วย ID จริงจาก Token เสมอ
-        request.EmployeeId = currentEmployeeId.Value;
+        string? imageUrl = null;
+
+        if (form.ImageFile is not null && form.ImageFile.Length > 0)
+        {
+            var uploadsDir = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads", "attendance");
+            
+            var filename = $"clock-out-{currentEmployeeId.Value}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+            using var stream = form.ImageFile.OpenReadStream();
+            imageUrl = await imageService.ProcessAndSaveAsync(
+                sourceStream   : stream,
+                filename       : filename,
+                saveDirectory  : uploadsDir,
+                maxWidthPx     : 1024,
+                qualityPercent : 80   
+            );
+        }
+
+        var request = new ClockOutRequest
+        {
+            EmployeeId = currentEmployeeId.Value,
+            ImageUrl = imageUrl
+        };
 
         var result = await attendanceService.ClockOutAsync(request);
 
@@ -111,4 +133,9 @@ public class ClockInRequestDto
     [FromForm] public string   CheckInMethod { get; set; } = string.Empty;
     [FromForm] public string?  Reason        { get; set; }
     [FromForm] public IFormFile? ImageFile   { get; set; }
+}
+
+public class ClockOutRequestDto
+{
+    [FromForm] public IFormFile? ImageFile { get; set; }
 }

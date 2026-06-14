@@ -59,10 +59,19 @@ export const submitClockIn = async (
 export const submitClockOut = async (
   data: ClockOutRequest,
 ): Promise<AttendanceStatusResponse> => {
+  const formData = new FormData();
+  formData.append('employeeId', data.employeeId);
+  if (data.imageFile) {
+    formData.append('imageFile', {
+      uri: data.imageFile.uri,
+      name: data.imageFile.name,
+      type: data.imageFile.type,
+    } as any);
+  }
   const { data: response } = await axios.post<{ data: AttendanceStatusResponse }>(
     `${BASE_URL}/api/attendances/clock-out`,
-    data,
-    { headers: { 'Content-Type': 'application/json' } },
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
   );
   return response.data;
 };

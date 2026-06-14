@@ -7,4 +7,10 @@ namespace Application.Dtos.HRMS;
 public class ClockOutRequest
 {
     public int EmployeeId { get; set; }
+    
+    /// <summary>
+    /// Relative URL path populated by the Web controller after ImageSharp processing.
+    /// Example: "/uploads/attendance/clock-out-1717600000.jpg"
+    /// </summary>
+    public string? ImageUrl { get; set; }
 }
