@@ -87,24 +87,7 @@ builder.Services.AddAuthentication(options =>
 // =========================================================================
 // 4. DI Services Registration
 // =========================================================================
-builder.Services.AddScoped<IEmployeeService, EmployeeService>();
-builder.Services.AddScoped<IDepartmentService, DepartmentService>();
-builder.Services.AddScoped<IRoleService, RoleService>();
-builder.Services.AddScoped<IFilterService, FilterService>();
-builder.Services.AddScoped<ISortService, SortService>();
-builder.Services.AddScoped<IPaginationService, PaginationService>();
-
-// ── Leave Management
-builder.Services.AddScoped<ILeaveService, LeaveService>();
-
-// ── Attendance (Phase 1)
-builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-builder.Services.AddScoped<ICompanyHolidayService, CompanyHolidayService>();
-builder.Services.AddScoped<IGeofenceService, GeofenceService>();
-builder.Services.AddSingleton<IImageService, ImageService>();
-
-// ── User Management System & Auth
-builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddApplicationServices();
 
 // =========================================================================
 // 5. Controller & OpenAPI / Swagger & Health / Rate Limiter Services
