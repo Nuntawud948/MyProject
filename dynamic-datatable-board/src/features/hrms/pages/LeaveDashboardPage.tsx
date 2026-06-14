@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   FileSpreadsheet,
   Clock,
@@ -22,18 +22,13 @@ import { LeaveTypeFormModal } from './leaves/LeaveTypeFormModal';
 import { LeaveRequestFormModal } from './leaves/LeaveRequestFormModal';
 import { LeaveApprovalModal } from './leaves/LeaveApprovalModal';
 
+// TanStack Query
+import { useQueryClient } from '@tanstack/react-query';
+import { useGetLeaveRequests, useGetLeaveTypes } from '../hooks/useLeaveQueries';
+
 export function LeaveDashboardPage() {
   const [activeTab, setActiveTab] = useState<'myLeaves' | 'approvals' | 'types'>('myLeaves');
-  const [refreshCounter, setRefreshCounter] = useState(0);
   const [activeRowMenuId, setActiveRowMenuId] = useState<string | number | null>(null);
-
-  // Stats State
-  const [stats, setStats] = useState({
-    totalRequests: 0,
-    pendingApproval: 0,
-    approvedRequests: 0,
-    activeLeaveTypes: 0,
-  });
 
   // Modal Control States
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
@@ -47,33 +42,29 @@ export function LeaveDashboardPage() {
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [approvalLevel, setApprovalLevel] = useState<'first' | 'second'>('first');
 
-  // Load KPI stats on mount / table refresh
-  useEffect(() => {
-    const fetchKPIStats = async () => {
-      try {
-        const [reqsRes, typesRes] = await Promise.all([
-          leave.getLeaveRequests({ pageIndex: 0, pageSize: 200 }),
-          leave.getLeaveTypes({ pageIndex: 0, pageSize: 200 }),
-        ]);
+  const queryClient = useQueryClient();
 
-        const reqs = reqsRes.data?.data?.items || reqsRes.data?.items || [];
-        const types = typesRes.data?.data?.items || typesRes.data?.items || [];
+  // Load KPI stats using React Query
+  const { data: reqsData, isLoading: isLoadingReqs } = useGetLeaveRequests({ pageIndex: 0, pageSize: 200 });
+  const { data: typesData, isLoading: isLoadingTypes } = useGetLeaveTypes({ pageIndex: 0, pageSize: 200 });
 
-        setStats({
-          totalRequests: reqs.length,
-          pendingApproval: reqs.filter((r: any) => r.status === 'Pending').length,
-          approvedRequests: reqs.filter((r: any) => r.status === 'Approved').length,
-          activeLeaveTypes: types.filter((t: any) => t.isActive).length,
-        });
-      } catch (err) {
-        console.error('Failed to load leave dashboard stats:', err);
-      }
-    };
-    fetchKPIStats();
-  }, [refreshCounter]);
+  const reqs = reqsData?.items || [];
+  const types = typesData?.items || [];
 
-  const handleRefresh = () => {
-    setRefreshCounter(prev => prev + 1);
+  // Derived Stats
+  const stats = {
+    totalRequests: reqs.length,
+    pendingApproval: reqs.filter((r: any) => r.status === 'Pending').length,
+    approvedRequests: reqs.filter((r: any) => r.status === 'Approved').length,
+    activeLeaveTypes: types.filter((t: any) => t.isActive).length,
+  };
+
+  const isLoadingStats = isLoadingReqs || isLoadingTypes;
+
+  const handleRefresh = async () => {
+    // Invalidate the datatable queries AND the KPI queries simultaneously
+    await queryClient.invalidateQueries({ queryKey: ['leaveRequests'] });
+    await queryClient.invalidateQueries({ queryKey: ['leaveTypes'] });
   };
 
   // ── DataTable configurations for Leave Types ───────────────────────────────────────
@@ -424,42 +415,53 @@ export function LeaveDashboardPage() {
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <CustomCard
-          icon={<FileSpreadsheet className="h-5 w-5" />}
-          title="Total Applications"
-          value={<>{stats.totalRequests} <span className="text-xs text-slate-400 font-normal">requests</span></>}
-          iconBgClass="bg-slate-50 border-slate-100"
-          iconTextClass="text-slate-700"
-          gradientFrom="from-white"
-          gradientTo="to-slate-50/50"
-        />
-        <CustomCard
-          icon={<Clock className="h-5 w-5" />}
-          title="Pending Approval"
-          value={<>{stats.pendingApproval} <span className="text-xs text-amber-600 font-bold">awaiting</span></>}
-          iconBgClass="bg-amber-50 border-amber-100"
-          iconTextClass="text-amber-600"
-          gradientFrom="from-white"
-          gradientTo="to-amber-50/20"
-        />
-        <CustomCard
-          icon={<UserCheck className="h-5 w-5" />}
-          title="Approved Requests"
-          value={<>{stats.approvedRequests} <span className="text-xs text-emerald-600 font-bold">approved</span></>}
-          iconBgClass="bg-emerald-50 border-emerald-100"
-          iconTextClass="text-emerald-600"
-          gradientFrom="from-white"
-          gradientTo="to-emerald-50/20"
-        />
-        <CustomCard
-          icon={<Settings className="h-5 w-5" />}
-          title="Active Leave Policies"
-          value={<>{stats.activeLeaveTypes} <span className="text-xs text-blue-600 font-normal">rules</span></>}
-          iconBgClass="bg-blue-50 border-blue-100"
-          iconTextClass="text-blue-600"
-          gradientFrom="from-white"
-          gradientTo="to-blue-50/20"
-        />
+        {isLoadingStats ? (
+          // Skeleton loaders for KPIs
+          <>
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-28 rounded-xl bg-slate-100 animate-pulse border border-slate-200"></div>
+            ))}
+          </>
+        ) : (
+          <>
+            <CustomCard
+              icon={<FileSpreadsheet className="h-5 w-5" />}
+              title="Total Applications"
+              value={<>{stats.totalRequests} <span className="text-xs text-slate-400 font-normal">requests</span></>}
+              iconBgClass="bg-slate-50 border-slate-100"
+              iconTextClass="text-slate-700"
+              gradientFrom="from-white"
+              gradientTo="to-slate-50/50"
+            />
+            <CustomCard
+              icon={<Clock className="h-5 w-5" />}
+              title="Pending Approval"
+              value={<>{stats.pendingApproval} <span className="text-xs text-amber-600 font-bold">awaiting</span></>}
+              iconBgClass="bg-amber-50 border-amber-100"
+              iconTextClass="text-amber-600"
+              gradientFrom="from-white"
+              gradientTo="to-amber-50/20"
+            />
+            <CustomCard
+              icon={<UserCheck className="h-5 w-5" />}
+              title="Approved Requests"
+              value={<>{stats.approvedRequests} <span className="text-xs text-emerald-600 font-bold">approved</span></>}
+              iconBgClass="bg-emerald-50 border-emerald-100"
+              iconTextClass="text-emerald-600"
+              gradientFrom="from-white"
+              gradientTo="to-emerald-50/20"
+            />
+            <CustomCard
+              icon={<Settings className="h-5 w-5" />}
+              title="Active Leave Policies"
+              value={<>{stats.activeLeaveTypes} <span className="text-xs text-blue-600 font-normal">rules</span></>}
+              iconBgClass="bg-blue-50 border-blue-100"
+              iconTextClass="text-blue-600"
+              gradientFrom="from-white"
+              gradientTo="to-blue-50/20"
+            />
+          </>
+        )}
       </div>
 
       {/* In-Page Navigation Tabs */}
@@ -495,7 +497,6 @@ export function LeaveDashboardPage() {
       {/* Active Tab Table Display */}
       {activeTab === 'types' ? (
         <DataTable
-          key={`types-${refreshCounter}`}
           columns={leaveTypeColumns}
           fetchData={fetchLeaveTypes}
           filterslot={0}
@@ -503,7 +504,7 @@ export function LeaveDashboardPage() {
         />
       ) : (
         <DataTable
-          key={`requests-${activeTab}-${refreshCounter}`}
+          key={`requests-${activeTab}`}
           columns={leaveRequestColumns}
           fetchData={fetchLeaveRequests}
           filterslot={4}
