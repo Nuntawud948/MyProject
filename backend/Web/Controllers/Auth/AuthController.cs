@@ -2,6 +2,7 @@ using Application.Common.Interfaces;
 using Application.Common.Models;
 using Application.Dtos.UMS;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Web.Controllers.Auth;
 
@@ -11,6 +12,7 @@ public class AuthController(IAuthService authService) : ControllerBase
 {
     // 🚪 [POST] /api/auth/login -> สำหรับเช็คชื่อพาสเวิร์ดรับ Token
     [HttpPost("login")]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var response = await authService.LoginAsync(request);

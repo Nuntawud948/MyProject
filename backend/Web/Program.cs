@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Web.Extensions;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -102,8 +103,11 @@ builder.Services.AddSingleton<IImageService, ImageService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // =========================================================================
-// 5. Controller & OpenAPI / Swagger
+// 5. Controller & OpenAPI / Swagger & Health / Rate Limiter Services
 // =========================================================================
+builder.Services.AddApplicationHealthChecks(builder.Configuration);
+builder.Services.AddApplicationRateLimiter();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -125,10 +129,18 @@ app.UseStaticFiles();
 // เปิดใช้งาน CORS ก่อนทำการ Auth
 app.UseCors("CorsPolicy");
 
+// Rate limiting must run before routing authentication
+app.UseRateLimiter();
+
 // 💡 Senior Tip: ลำดับ Middleware ตรงนี้สำคัญมากใน .NET! 
 // ต้องเรียกใช้ Authentication (ตรวจป้าย) ก่อน Authorization (เช็คสิทธิ์ทำ) เสมอ
 app.UseAuthentication(); 
 app.UseAuthorization();
+
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = Web.HealthChecks.HealthCheckResponseWriter.WriteAsync
+});
 
 app.MapControllers();
 

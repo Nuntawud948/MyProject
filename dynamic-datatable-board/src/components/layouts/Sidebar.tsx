@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../ui/button';
-import { LogOut, Users, Settings, LayoutDashboard, Calendar, Clock, Shield, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LogOut, Users, Settings, LayoutDashboard, Calendar, Clock, Shield, MapPin, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../features/auth/store/useAuthStore';
 
 interface SidebarProps {
@@ -13,6 +14,10 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   const location = useLocation();
   const { logout, user } = useAuthStore();
   const currentUsername = user?.username || 'Administrator';
+
+  // 📂 สเตตสำหรับการย่อ/ขยายเมนูย่อย (Collapsible sub-menus)
+  const [hrmsOpen, setHrmsOpen] = useState(true);
+  const [setupOpen, setSetupOpen] = useState(true);
 
   const handleLogout = () => {
     // 🧼 เรียกล้างสถานะ Token และบัญชีผู้ใช้ผ่าน Zustand store
@@ -66,114 +71,142 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
             {!isCollapsed && <span className="animate-in fade-in duration-200">Core Dashboard</span>}
           </Link>
 
-          {/* HRMS Module Section */}
+          {/* HRMS Module Collapsible Header */}
           {!isCollapsed ? (
-            <div className="text-[10px] uppercase font-bold text-slate-500 px-3 pt-4 pb-1 tracking-widest animate-in fade-in duration-200">
-              HRMS Module
-            </div>
+            <button
+              onClick={() => setHrmsOpen(!hrmsOpen)}
+              className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-[10px] uppercase font-bold text-slate-500 hover:text-slate-350 transition-colors cursor-pointer select-none"
+            >
+              <span>HRMS Module</span>
+              <ChevronDown
+                size={12}
+                className={`transition-transform duration-250 ${hrmsOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
           ) : (
             <div className="border-t border-slate-800/60 my-2" />
           )}
 
-          <Link
-            to="/hrms/employees"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              isActive('/hrms/employees')
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-            } ${isCollapsed ? 'justify-center' : ''}`}
-            title="Employee Grid"
+          {/* HRMS Submenu Content Container */}
+          <div
+            className={`transition-all duration-300 overflow-hidden space-y-1.5 ${
+              !isCollapsed && !hrmsOpen ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-[500px] opacity-100'
+            }`}
           >
-            <Users size={16} className="shrink-0" />
-            {!isCollapsed && <span className="animate-in fade-in duration-200">Employee Grid</span>}
-          </Link>
+            <Link
+              to="/hrms/employees"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                isActive('/hrms/employees')
+                  ? 'bg-slate-800 text-white font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title="Employee Grid"
+            >
+              <Users size={16} className="shrink-0" />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">Employee Grid</span>}
+            </Link>
 
-          <Link
-            to="/hrms/leaves"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              isActive('/hrms/leaves')
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-            } ${isCollapsed ? 'justify-center' : ''}`}
-            title="Leave Management"
-          >
-            <Calendar size={16} className="shrink-0" />
-            {!isCollapsed && <span className="animate-in fade-in duration-200">Leave Management</span>}
-          </Link>
+            <Link
+              to="/hrms/leaves"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                isActive('/hrms/leaves')
+                  ? 'bg-slate-800 text-white font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title="Leave Management"
+            >
+              <Calendar size={16} className="shrink-0" />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">Leave Management</span>}
+            </Link>
 
-          <Link
-            to="/hrms/company-holidays"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              isActive('/hrms/company-holidays')
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-            } ${isCollapsed ? 'justify-center' : ''}`}
-            title="Company Holidays"
-          >
-            <Calendar size={16} className="text-blue-400 shrink-0" />
-            {!isCollapsed && <span className="animate-in fade-in duration-200">Company Holidays</span>}
-          </Link>
+            <Link
+              to="/hrms/company-holidays"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                isActive('/hrms/company-holidays')
+                  ? 'bg-slate-800 text-white font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title="Company Holidays"
+            >
+              <Calendar size={16} className="text-blue-400 shrink-0" />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">Company Holidays</span>}
+            </Link>
 
-          <Link
-            to="/hrms/attendance"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              isActive('/hrms/attendance')
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-            } ${isCollapsed ? 'justify-center' : ''}`}
-            title="Attendance Ledger"
-          >
-            <Clock size={16} className="shrink-0" />
-            {!isCollapsed && <span className="animate-in fade-in duration-200">Attendance Ledger</span>}
-          </Link>
+            <Link
+              to="/hrms/attendance"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                isActive('/hrms/attendance')
+                  ? 'bg-slate-800 text-white font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title="Attendance Ledger"
+            >
+              <Clock size={16} className="shrink-0" />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">Attendance Ledger</span>}
+            </Link>
 
-          <Link
-            to="/hrms/geofences"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              isActive('/hrms/geofences')
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-            } ${isCollapsed ? 'justify-center' : ''}`}
-            title="Geofence Settings"
-          >
-            <MapPin size={16} className="shrink-0" />
-            {!isCollapsed && <span className="animate-in fade-in duration-200">Geofence Settings</span>}
-          </Link>
+            <Link
+              to="/hrms/geofences"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                isActive('/hrms/geofences')
+                  ? 'bg-slate-800 text-white font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title="Geofence Settings"
+            >
+              <MapPin size={16} className="shrink-0" />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">Geofence Settings</span>}
+            </Link>
+          </div>
 
-          {/* Setup Configuration Section */}
+          {/* Setup Configuration Collapsible Header */}
           {!isCollapsed ? (
-            <div className="text-[10px] uppercase font-bold text-slate-500 px-3 pt-4 pb-1 tracking-widest animate-in fade-in duration-200">
-              Setup Configuration
-            </div>
+            <button
+              onClick={() => setSetupOpen(!setupOpen)}
+              className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-[10px] uppercase font-bold text-slate-500 hover:text-slate-350 transition-colors cursor-pointer select-none"
+            >
+              <span>Setup Configuration</span>
+              <ChevronDown
+                size={12}
+                className={`transition-transform duration-250 ${setupOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
           ) : (
             <div className="border-t border-slate-800/60 my-2" />
           )}
 
-          <Link
-            to="/setup/users"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              isActive('/setup/users')
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-            } ${isCollapsed ? 'justify-center' : ''}`}
-            title="User Accounts"
+          {/* Setup Submenu Content Container */}
+          <div
+            className={`transition-all duration-300 overflow-hidden space-y-1.5 ${
+              !isCollapsed && !setupOpen ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-[200px] opacity-100'
+            }`}
           >
-            <Shield size={16} className="shrink-0" />
-            {!isCollapsed && <span className="animate-in fade-in duration-200">User Accounts</span>}
-          </Link>
+            <Link
+              to="/setup/users"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                isActive('/setup/users')
+                  ? 'bg-slate-800 text-white font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title="User Accounts"
+            >
+              <Shield size={16} className="shrink-0" />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">User Accounts</span>}
+            </Link>
 
-          <Link
-            to="/setup/roles"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-              isActive('/setup/roles')
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-            } ${isCollapsed ? 'justify-center' : ''}`}
-            title="Role Permissions"
-          >
-            <Settings size={16} className="shrink-0" />
-            {!isCollapsed && <span className="animate-in fade-in duration-200">Role Permissions</span>}
-          </Link>
+            <Link
+              to="/setup/roles"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                isActive('/setup/roles')
+                  ? 'bg-slate-800 text-white font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title="Role Permissions"
+            >
+              <Settings size={16} className="shrink-0" />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">Role Permissions</span>}
+            </Link>
+          </div>
         </nav>
       </div>
 

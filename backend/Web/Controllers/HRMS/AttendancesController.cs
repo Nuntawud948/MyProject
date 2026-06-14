@@ -3,6 +3,7 @@ using Application.Common.Interfaces.HRMS;
 using Application.Dtos.HRMS;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Web.Extensions; // 👈 อย่าลืมดึง Extension ตัวแกะกุญแจมาใช้
 
 namespace Web.Controllers.HRMS;
@@ -19,6 +20,7 @@ public class AttendancesController(
     // POST api/attendances/clock-in
     [HttpPost("clock-in")]
     [Consumes("multipart/form-data")]
+    [EnableRateLimiting("CheckInPolicy")]
     public async Task<IActionResult> ClockIn([FromForm] ClockInRequestDto form)
     {
         // 🔥 1. แกะรหัสพนักงานตัวจริงเสียงจริง จาก JWT Token เท่านั้น!
@@ -64,6 +66,7 @@ public class AttendancesController(
 
     // POST api/attendances/clock-out
     [HttpPost("clock-out")]
+    [EnableRateLimiting("CheckInPolicy")]
     public async Task<IActionResult> ClockOut([FromBody] ClockOutRequest request)
     {
         // 🔥 2. ดักการลงเวลาออกแทนกัน
