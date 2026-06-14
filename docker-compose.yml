@@ -1,4 +1,4 @@
-﻿services:
+services:
   # --- 1. ตู้ฐานข้อมูล (Database) ---
   postgres-db:
     image: postgres:16-alpine # ดึง Image สำเร็จรูปมาจาก Docker Hub ทันที ไม่ต้องเขียน Dockerfile เอง
@@ -23,6 +23,7 @@
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres-db;Database=mydatabase;Username=myuser;Password=mysecretpassword
       - ASPNETCORE_ENVIRONMENT=Development
+      - ElasticSearch__Uri=http://elasticsearch:9200
     depends_on:
       - postgres-db # บอก Docker ว่าให้เปิดฐานข้อมูลให้เสร็จก่อน แล้วค่อยเปิดหลังบ้านตามมา
 
@@ -36,7 +37,31 @@
       - "3000:80" # แมปให้เครื่องจริงเข้าใช้งานหน้าเว็บผ่านพอร์ต 3000 (ในตู้รัน 80)
     depends_on:
       - backend-api
+  # --- 4. Elasticsearch (Log Storage) ---
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: my_elasticsearch_container
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  # --- 5. Kibana (Log Visualization) ---
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.0
+    container_name: my_kibana_container
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
 
 # ประกาศการใช้งาน Volume กลางเพื่อเก็บรักษาข้อมูลของ PostgreSQL
 volumes:
   postgres_data:
+  elasticsearch_data:
