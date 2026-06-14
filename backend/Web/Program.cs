@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using StackExchange.Redis;
 using Web.Extensions;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -85,8 +86,21 @@ builder.Services.AddAuthentication(options =>
 });
 
 // =========================================================================
-// 4. DI Services Registration
+// 4. DI Services Registration & Performance/Audit
 // =========================================================================
+builder.Services.AddHttpContextAccessor();
+
+// 4.1 Setup Redis Caching
+var redisConnectionString = builder.Configuration.GetSection("Redis")["ConnectionString"] ?? "localhost:6379";
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+    options.InstanceName = "MyProject_";
+});
+// Register IConnectionMultiplexer for advanced Redis operations (e.g., prefix deletion)
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+    ConnectionMultiplexer.Connect(redisConnectionString));
+
 builder.Services.AddApplicationServices();
 
 // =========================================================================

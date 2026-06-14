@@ -27,6 +27,10 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IGeofenceService, GeofenceService>();
         services.AddSingleton<IImageService, ImageService>();
 
+        // ── Common Services & Performance/Audit
+        services.AddSingleton<ICacheService, CacheService>();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+
         // ── User Management System & Auth
         services.AddScoped<IAuthService, AuthService>();
 

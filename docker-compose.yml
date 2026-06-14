@@ -24,6 +24,7 @@ services:
       - ConnectionStrings__DefaultConnection=Host=postgres-db;Database=mydatabase;Username=myuser;Password=mysecretpassword
       - ASPNETCORE_ENVIRONMENT=Development
       - ElasticSearch__Uri=http://elasticsearch:9200
+      - Redis__ConnectionString=redis:6379
     depends_on:
       - postgres-db # บอก Docker ว่าให้เปิดฐานข้อมูลให้เสร็จก่อน แล้วค่อยเปิดหลังบ้านตามมา
 
@@ -61,7 +62,17 @@ services:
     depends_on:
       - elasticsearch
 
+  # --- 6. Redis (Caching) ---
+  redis:
+    image: redis:7-alpine
+    container_name: my_redis_container
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
 # ประกาศการใช้งาน Volume กลางเพื่อเก็บรักษาข้อมูลของ PostgreSQL
 volumes:
   postgres_data:
   elasticsearch_data:
+  redis_data:

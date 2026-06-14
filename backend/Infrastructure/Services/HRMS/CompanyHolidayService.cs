@@ -13,9 +13,11 @@ public class CompanyHolidayService(
     ApplicationDbContext context,
     IFilterService filterService,
     ISortService sortService,
-    IPaginationService paginationService
+    IPaginationService paginationService,
+    ICacheService cacheService
 ) : ICompanyHolidayService
 {
+    private const string CachePrefix = "company-holidays";
     public async Task<Response<PaginationResponse<CompanyHolidayResponse>>> GetCompanyHolidaysAsync(
         CompanyHolidayRequest request
     )
@@ -78,6 +80,21 @@ public class CompanyHolidayService(
     {
         try
         {
+            var cacheKey = $"{CachePrefix}:year:{year}";
+            
+            // 1. Try to get from Cache first
+            var cachedHolidays = await cacheService.GetAsync<List<CompanyHolidayResponse>>(cacheKey);
+            if (cachedHolidays != null)
+            {
+                return new Response<List<CompanyHolidayResponse>>
+                {
+                    IsSuccess = true,
+                    Data = cachedHolidays,
+                    Message = $"Company holidays for year {year} retrieved from cache successfully."
+                };
+            }
+
+            // 2. If not found in cache, query the Database
             var holidays = await context.CompanyHolidays
                 .AsNoTracking()
                 .Where(h => h.IsActive && h.Year == year)
@@ -86,11 +103,14 @@ public class CompanyHolidayService(
 
             var list = CompanyHolidayMapper.Instance.MapToResponseList(holidays);
 
+            // 3. Save to Cache for future requests (e.g., expire in 1 hour)
+            await cacheService.SetAsync(cacheKey, list, TimeSpan.FromHours(1));
+
             return new Response<List<CompanyHolidayResponse>>
             {
                 IsSuccess = true,
                 Data = list,
-                Message = $"Company holidays for year {year} retrieved successfully."
+                Message = $"Company holidays for year {year} retrieved from database successfully."
             };
         }
         catch (Exception ex)
@@ -136,6 +156,9 @@ public class CompanyHolidayService(
             context.CompanyHolidays.Add(entity);
             await context.SaveChangesAsync();
 
+            // Invalidate cache for all company holidays since data changed
+            await cacheService.RemoveByPrefixAsync(CachePrefix);
+
             return new Response<CompanyHolidayFormDto>
             {
                 IsSuccess = true,
@@ -164,6 +187,9 @@ public class CompanyHolidayService(
 
             await context.SaveChangesAsync();
 
+            // Invalidate cache for all company holidays
+            await cacheService.RemoveByPrefixAsync(CachePrefix);
+
             var res = CompanyHolidayMapper.Instance.MapToResponse(holiday);
 
             return new Response<CompanyHolidayResponse>
@@ -191,6 +217,9 @@ public class CompanyHolidayService(
 
             holiday.IsActive = false; // Soft delete
             await context.SaveChangesAsync();
+
+            // Invalidate cache
+            await cacheService.RemoveByPrefixAsync(CachePrefix);
 
             return new Response<bool> { IsSuccess = true, Data = true, Message = "Company holiday soft-deleted successfully." };
         }
