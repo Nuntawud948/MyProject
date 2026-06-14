@@ -1,6 +1,7 @@
 // ไทป์ข้อมูลเนื้อในเมื่อทำระบบ Authentication สำเร็จ
 export interface TokenResponse {
     token: string;
+    refreshToken: string;
     username: string;
     role: string;
     expiresAt: string;

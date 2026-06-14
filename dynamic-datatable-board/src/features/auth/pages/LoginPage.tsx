@@ -26,6 +26,7 @@ export default function LoginPage() {
             if (response && response.isSuccess && response.data) {
                 // 💾 เมื่อล็อกอินผ่าน นำค่า Token และสิทธิ์ ไปบันทึกลงเครื่องหน้าบ้าน
                 localStorage.setItem('token', response.data.token);
+                localStorage.setItem('refreshToken', response.data.refreshToken);
                 localStorage.setItem('username', response.data.username);
                 localStorage.setItem('role', response.data.role);
 

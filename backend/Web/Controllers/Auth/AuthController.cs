@@ -23,6 +23,32 @@ public class AuthController(IAuthService authService) : ControllerBase
         return Ok(response); // ส่ง 200 พร้อมซอง TokenResponse
     }
 
+    // 🔄 [POST] /api/auth/refresh -> สำหรับต่ออายุ Token
+    [HttpPost("refresh")]
+    [EnableRateLimiting("LoginPolicy")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+    {
+        var response = await authService.RefreshTokenAsync(request);
+        if (!response.IsSuccess)
+        {
+            return BadRequest(response);
+        }
+        return Ok(response);
+    }
+
+    // ⛔ [POST] /api/auth/revoke -> สำหรับเพิกถอนสิทธิ์ Token (ต้อง Login ก่อนถึงจะเตะตัวเองหรือคนอื่นได้)
+    [HttpPost("revoke")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> Revoke([FromBody] RevokeTokenRequest request)
+    {
+        var response = await authService.RevokeTokenAsync(request.Username);
+        if (!response.IsSuccess)
+        {
+            return BadRequest(response);
+        }
+        return Ok(response);
+    }
+
     // 📝 [POST] /api/auth/register -> สำหรับสมัครสมาชิกโมดูล UMS (เผื่อใช้เทสสร้างไอดี)
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)

@@ -9,5 +9,16 @@ export const authApi = {
     login: async (credentials: LoginRequest): Promise<ApiResponse<TokenResponse>> => {
         const response = await axiosClient.post<ApiResponse<TokenResponse>>('/api/Auth/login', credentials);
         return response.data;
+    },
+    
+    /**
+     * 🔄 ส่งคำขอต่ออายุ Token โดยใช้ Access Token ที่หมดอายุ และ Refresh Token
+     */
+    refresh: async (accessToken: string, refreshToken: string): Promise<ApiResponse<TokenResponse>> => {
+        const response = await axiosClient.post<ApiResponse<TokenResponse>>('/api/Auth/refresh', {
+            accessToken,
+            refreshToken
+        });
+        return response.data;
     }
 };

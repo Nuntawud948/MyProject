@@ -9,6 +9,8 @@ using Infrastructure.Database;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Configuration;
+using System.Security.Cryptography;
 
 namespace Infrastructure.Services.Auth;
 
@@ -20,6 +22,7 @@ public class AuthService : IAuthService
     private readonly IFilterService _filterService;
     private readonly ISortService _sortService;
     private readonly IPaginationService _paginationService;
+    private readonly IConfiguration _configuration;
 
     public AuthService(
         ApplicationDbContext context, 
@@ -27,7 +30,8 @@ public class AuthService : IAuthService
         RoleManager<ApplicationRole> roleManager, // 🔥 เปลี่ยนเป็น ApplicationRole
         IFilterService filterService, 
         ISortService sortService, 
-        IPaginationService paginationService)
+        IPaginationService paginationService,
+        IConfiguration configuration)
     {
         _context = context;
         _userManager = userManager;
@@ -35,6 +39,7 @@ public class AuthService : IAuthService
         _filterService = filterService;
         _sortService = sortService;
         _paginationService = paginationService;
+        _configuration = configuration;
     }
 
     public async Task<Response<TokenResponse>> LoginAsync(LoginRequest request)
@@ -46,8 +51,6 @@ public class AuthService : IAuthService
             return new Response<TokenResponse> { IsSuccess = false, Message = $"Debug Error: บัญชี '{request.Username}' ไม่มีอยู่จริง" };
         }
 
-   
-
         bool isPasswordValid = await _userManager.CheckPasswordAsync(account, request.Password);
         if (!isPasswordValid)
         {
@@ -57,43 +60,86 @@ public class AuthService : IAuthService
         var userRoles = await _userManager.GetRolesAsync(account);
         var primaryRole = userRoles.FirstOrDefault() ?? "User";
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes("SuperSecretKeyEnterpriseTierVector99999YourCompanySecretKey"); 
+        var (accessToken, expiresAt) = GenerateAccessToken(account, userRoles.ToList());
+        var refreshToken = GenerateRefreshToken();
 
-        var claims = new List<Claim>
-        {
-            // 🔥 [แก้ Error ที่ 1] เติม .ToString() เพราะ Claim รับเฉพาะ String
-            new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()), 
-            new Claim(ClaimTypes.Name, account.UserName ?? ""),
-            new Claim(ClaimTypes.Email, account.Email ?? ""),
-            new Claim("EmployeeId", account.EmployeeId?.ToString() ?? string.Empty) 
-        };
-
-        foreach (var role in userRoles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
-        }
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddHours(8),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-        };
-
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        var tokenString = tokenHandler.WriteToken(token);
+        // Update refresh token in DB
+        var refreshTokenExpiryDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        account.RefreshToken = refreshToken;
+        account.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(refreshTokenExpiryDays);
+        await _userManager.UpdateAsync(account);
 
         var result = new TokenResponse
         {
-            Token = tokenString,
-            Username = account.UserName,
+            Token = accessToken,
+            RefreshToken = refreshToken,
+            Username = account.UserName ?? string.Empty,
             Role = primaryRole,
             EmployeeId = account.EmployeeId?.ToString() ?? string.Empty,
-            ExpiresAt = tokenDescriptor.Expires.Value,
+            ExpiresAt = expiresAt,
         };
 
         return new Response<TokenResponse> { IsSuccess = true, Data = result, Message = "Authentication successful." };
+    }
+
+    public async Task<Response<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request)
+    {
+        var principal = GetPrincipalFromExpiredToken(request.AccessToken);
+        if (principal == null)
+        {
+            return new Response<TokenResponse> { IsSuccess = false, Message = "Invalid access token or refresh token" };
+        }
+
+        var username = principal.Identity?.Name;
+        if (username == null)
+        {
+            return new Response<TokenResponse> { IsSuccess = false, Message = "Invalid access token or refresh token" };
+        }
+
+        var account = await _userManager.FindByNameAsync(username);
+        if (account == null || account.RefreshToken != request.RefreshToken || account.RefreshTokenExpiryTime <= DateTime.UtcNow)
+        {
+            return new Response<TokenResponse> { IsSuccess = false, Message = "Invalid access token or refresh token" };
+        }
+
+        var userRoles = await _userManager.GetRolesAsync(account);
+        var primaryRole = userRoles.FirstOrDefault() ?? "User";
+
+        var (newAccessToken, expiresAt) = GenerateAccessToken(account, userRoles.ToList());
+        var newRefreshToken = GenerateRefreshToken();
+
+        // Rotate refresh token
+        var refreshTokenExpiryDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        account.RefreshToken = newRefreshToken;
+        account.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(refreshTokenExpiryDays);
+        await _userManager.UpdateAsync(account);
+
+        var result = new TokenResponse
+        {
+            Token = newAccessToken,
+            RefreshToken = newRefreshToken,
+            Username = account.UserName ?? string.Empty,
+            Role = primaryRole,
+            EmployeeId = account.EmployeeId?.ToString() ?? string.Empty,
+            ExpiresAt = expiresAt,
+        };
+
+        return new Response<TokenResponse> { IsSuccess = true, Data = result, Message = "Token refreshed successfully." };
+    }
+
+    public async Task<Response> RevokeTokenAsync(string username)
+    {
+        var account = await _userManager.FindByNameAsync(username);
+        if (account == null)
+        {
+            return new Response { IsSuccess = false, Message = "User not found" };
+        }
+
+        account.RefreshToken = null;
+        account.RefreshTokenExpiryTime = null;
+        await _userManager.UpdateAsync(account);
+
+        return new Response { IsSuccess = true, Message = "Token revoked successfully" };
     }
 
     public async Task<Response> RegisterAsync(RegisterRequest request)
@@ -228,6 +274,79 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             return new Response { IsSuccess = false, Message = $"Failed to update: {ex.Message}" };
+        }
+    }
+
+    private (string Token, DateTime ExpiresAt) GenerateAccessToken(ApplicationUser account, List<string> userRoles)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var secretKey = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyEnterpriseTierVector99999YourCompanySecretKey";
+        var key = Encoding.ASCII.GetBytes(secretKey);
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()), 
+            new Claim(ClaimTypes.Name, account.UserName ?? ""),
+            new Claim(ClaimTypes.Email, account.Email ?? ""),
+            new Claim("EmployeeId", account.EmployeeId?.ToString() ?? string.Empty) 
+        };
+
+        foreach (var role in userRoles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        var expirationMinutes = _configuration.GetValue<int>("JwtSettings:AccessTokenExpirationMinutes", 15);
+        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = expiresAt,
+            Issuer = _configuration["JwtSettings:Issuer"] ?? "MyProjectBackend",
+            Audience = _configuration["JwtSettings:Audience"] ?? "MyProjectFrontend",
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
+        };
+
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return (tokenHandler.WriteToken(token), expiresAt);
+    }
+
+    private string GenerateRefreshToken()
+    {
+        var randomNumber = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
+    }
+
+    private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+    {
+        var secretKey = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyEnterpriseTierVector99999YourCompanySecretKey";
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = true, // We must validate it according to appsettings
+            ValidateIssuer = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = _configuration["JwtSettings:Issuer"] ?? "MyProjectBackend",
+            ValidAudience = _configuration["JwtSettings:Audience"] ?? "MyProjectFrontend",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secretKey)),
+            ValidateLifetime = false // Here we are saying that we don't care about the token's expiration date
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        try
+        {
+            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
+            var jwtSecurityToken = securityToken as JwtSecurityToken;
+            if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                throw new SecurityTokenException("Invalid token");
+
+            return principal;
+        }
+        catch
+        {
+            return null; // Return null if validation fails
         }
     }
 }

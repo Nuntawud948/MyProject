@@ -1,4 +1,4 @@
-﻿using Domain.Entities.HRMS; // ชี้ไปที่โฟลเดอร์เก็บ Employee ของคุณ
+using Domain.Entities.HRMS; // ชี้ไปที่โฟลเดอร์เก็บ Employee ของคุณ
 using Microsoft.AspNetCore.Identity;
 
 namespace Infrastructure.Database;
@@ -10,4 +10,8 @@ public class ApplicationUser : IdentityUser<int>
 
     // Navigation Property เพื่อให้ EF Core ดึงข้อมูลพนักงานมาพร้อมกันได้ (Relational)
     public Employee? Employee { get; set; } 
+
+    // Refresh Token
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiryTime { get; set; }
 }

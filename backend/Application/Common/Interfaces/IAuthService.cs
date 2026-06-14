@@ -8,6 +8,12 @@ public interface IAuthService
     // บริการตรวจสอบการล็อกอิน (ส่ง TokenResponse กลับไปเมื่อผ่าน)
     Task<Response<TokenResponse>> LoginAsync(LoginRequest request);
 
+    // บริการต่ออายุ Token
+    Task<Response<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request);
+
+    // บริการเพิกถอน Token (เตะออกจากระบบ)
+    Task<Response> RevokeTokenAsync(string username);
+
     // บริการสมัครสมาชิก (ถอดรหัสผ่านมาทำ Hash ความปลอดภัยสูง)
     Task<Response> RegisterAsync(RegisterRequest request);
 

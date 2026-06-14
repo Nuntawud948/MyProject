@@ -27,9 +27,41 @@ axiosClient.interceptors.response.use(
     (response) => {
         return response;
     },
-    (error) => {
-        // หากเซิร์ฟเวอร์ตอบกลับมาเป็นรหัสสถานะ 401 Unauthorized
-        if (error.response && error.response.status === 401) {
+    async (error) => {
+        const originalRequest = error.config;
+
+        // หากเซิร์ฟเวอร์ตอบกลับมาเป็นรหัสสถานะ 401 Unauthorized และยังไม่ได้ลอง refresh
+        if (error.response && error.response.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+
+            try {
+                const token = useAuthStore.getState().token || localStorage.getItem('token');
+                const refreshToken = useAuthStore.getState().refreshToken || localStorage.getItem('refreshToken');
+
+                if (token && refreshToken) {
+                    // ใช้ axios ปกติ ไม่ใช่ axiosClient เพื่อป้องกัน interceptor วนลูป
+                    const response = await axios.post(`${axiosClient.defaults.baseURL}/api/Auth/refresh`, {
+                        accessToken: token,
+                        refreshToken: refreshToken
+                    });
+
+                    if (response.data && response.data.isSuccess && response.data.data) {
+                        const { token: newToken, refreshToken: newRefreshToken, username, role } = response.data.data;
+                        
+                        // อัปเดต state และ localStorage ใหม่
+                        useAuthStore.getState().login(newToken, newRefreshToken, { username, role });
+
+                        // แก้ Header ของ Request เดิมให้ใช้ Token ใหม่
+                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                        
+                        // ส่ง Request เดิมไปใหม่อีกครั้ง
+                        return axiosClient(originalRequest);
+                    }
+                }
+            } catch (refreshError) {
+                console.warn('Refresh token หมดอายุหรือไม่ถูกต้อง — กำลังออกจากระบบ...');
+            }
+
             console.warn('ตรวจพบสิทธิ์เข้าถึงไม่ถูกต้องหรือ Token หมดอายุ (401) — กำลังออกจากระบบ...');
             
             // 🧼 เรียกล้างข้อมูลสิทธิ์และ Token ทั้งหมดใน Zustand และ localStorage

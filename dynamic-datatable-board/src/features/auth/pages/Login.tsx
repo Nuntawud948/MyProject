@@ -43,10 +43,10 @@ export default function Login() {
 
       // ตรวจสอบโครงสร้าง Response ตาม API ที่กำหนดไว้
       if (resData && resData.isSuccess && resData.data) {
-        const { token, username, role } = resData.data;
+        const { token, refreshToken, username, role } = resData.data;
         
         // 💾 บันทึก JWT Token และข้อมูลผู้ใช้ลง Zustand (และ localStorage อัตโนมัติ)
-        login(token, { username, role });
+        login(token, refreshToken, { username, role });
 
         // 🔀 ดีดหน้าไปยังแดชบอร์ดหลัก
         navigate('/dashboard');
