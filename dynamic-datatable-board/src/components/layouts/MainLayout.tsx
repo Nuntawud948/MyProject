@@ -6,12 +6,14 @@
 import React, { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { useSessionTimeout } from '../../features/auth/hooks/useSessionTimeout';
 
 export interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  useSessionTimeout();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
