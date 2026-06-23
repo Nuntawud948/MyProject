@@ -4,11 +4,25 @@ namespace Application.Common.Utils;
 
 public static class DateTimeHelper
 {
+    public static DateTime GetThaiNow()
+    {
+        try
+        {
+            var thaiZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, thaiZone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            var thaiZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, thaiZone);
+        }
+    }
+
     public static Tuple<DateTime, DateTime> GetThailandTodayUtcBoundaries()
     {
-        // Use local server time
-        var localStart = DateTime.Today; // 00:00:00 local time
-        var localEnd = localStart.AddDays(1); // 00:00:00 local time tomorrow
+        var thaiNow = GetThaiNow();
+        var localStart = thaiNow.Date; // 00:00:00 Thai time today
+        var localEnd = localStart.AddDays(1); // 00:00:00 Thai time tomorrow
 
         return Tuple.Create(localStart, localEnd);
     }

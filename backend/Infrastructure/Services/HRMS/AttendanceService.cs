@@ -48,7 +48,7 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
         var entity = new Attendance
         {
           EmployeeId      = request.EmployeeId,
-          ClockInTime     = DateTime.Now,
+          ClockInTime     = DateTimeHelper.GetThaiNow(),
           Latitude        = request.Latitude,
           Longitude       = request.Longitude,
           CheckInMethod   = request.CheckInMethod,
@@ -56,7 +56,7 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
           ImageUrl        = request.ImageUrl,
           // Auto check-ins are pre-approved; Manual require manager review
           IsApproved      = request.CheckInMethod == "Auto",
-          CreatedAt       = DateTime.Now,
+          CreatedAt       = DateTimeHelper.GetThaiNow(),
         };
 
         context.Attendances.Add(entity);
@@ -91,8 +91,8 @@ public class AttendanceService(ApplicationDbContext context) : IAttendanceServic
           return Response<AttendanceResponse>.Failure(
             "No open attendance record found for today. Please clock in first.");
 
-        entity.ClockOutTime = DateTime.Now;
-        entity.UpdatedAt    = DateTime.Now;
+        entity.ClockOutTime = DateTimeHelper.GetThaiNow();
+        entity.UpdatedAt    = DateTimeHelper.GetThaiNow();
 
         await context.SaveChangesAsync();
 

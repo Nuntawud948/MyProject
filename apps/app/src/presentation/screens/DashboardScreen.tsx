@@ -29,6 +29,7 @@ import { WebView } from 'react-native-webview';
 
 import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../hooks/useAttendance';
+import { SecureCheckIn } from '../components/SecureCheckIn';
 import { ManualCheckInModal } from '../components/attendance/ManualCheckInModal';
 import { ConfirmationDialog } from '../components/attendance/ConfirmationDialog';
 import { SelfieModal } from '../components/attendance/SelfieModal';
@@ -434,31 +435,13 @@ export function DashboardScreen() {
         {/* ── Action Section: Check-In/Out ─────────────────────────────────── */}
         <View style={styles.actionsContainer}>
           <View style={styles.checkInOutRow}>
-            {/* Check-In Button */}
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                styles.checkInBtn,
-                (isClockedIn || isLoading) && styles.btnDisabled,
-              ]}
-              onPress={handleAutoClockIn}
-              disabled={isClockedIn || isLoading}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons
-                name="login"
-                size={22}
-                color={isClockedIn ? Theme.colors.outline : Theme.colors.onPrimary}
-              />
-              <Text
-                style={[
-                  styles.actionBtnText,
-                  { color: isClockedIn ? Theme.colors.outline : Theme.colors.onPrimary },
-                ]}
-              >
-                Check-In
-              </Text>
-            </TouchableOpacity>
+            {/* Check-In Button (Secure) */}
+            <SecureCheckIn
+              isClockedIn={isClockedIn}
+              isLoading={isLoading}
+              onCheckInAllowed={handleAutoClockIn}
+              onSecurityBlock={() => setCoords(null)}
+            />
 
             {/* Check-Out Button */}
             <TouchableOpacity
