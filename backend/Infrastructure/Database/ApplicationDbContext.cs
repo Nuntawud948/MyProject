@@ -10,18 +10,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Infrastructure.Database;
 
 // 💡 Senior Tip: เปลี่ยนมาสืบทอดจาก IdentityDbContext<IdentityUser> เพื่อระบุระบบสมาชิกมาตรฐานให้กับ EF Core ทราบชัดเจน
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, int>
+public class ApplicationDbContext(
+    DbContextOptions<ApplicationDbContext> options,
+    ICurrentUserService currentUserService) : IdentityDbContext<ApplicationUser, ApplicationRole, int>(options)
 {
-    private readonly ICurrentUserService _currentUserService;
-
-    // คอนสตรัคเตอร์มาตรฐานสำหรับโปรเจกต์แยก Layer ยุค 2026 ปลอดภัยต่อเครื่องมือ CLI
-    public ApplicationDbContext(
-        DbContextOptions<ApplicationDbContext> options,
-        ICurrentUserService currentUserService)
-        : base(options)
-    {
-        _currentUserService = currentUserService;
-    }
 
     // กำหนดตารางที่จะให้สร้างใน Database
     public DbSet<Employee> Employees => Set<Employee>();
@@ -185,7 +177,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = new CancellationToken())
     {
         var auditEntries = new List<AuditLog>();
-        var currentUserId = _currentUserService.UserId;
+        var currentUserId = currentUserService.UserId;
 
         // Iterate through all modified entities
         foreach (var entry in ChangeTracker.Entries())

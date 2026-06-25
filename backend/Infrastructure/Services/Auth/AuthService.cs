@@ -14,60 +14,42 @@ using System.Security.Cryptography;
 
 namespace Infrastructure.Services.Auth;
 
-public class AuthService : IAuthService
+public class AuthService(
+    ApplicationDbContext context, 
+    UserManager<ApplicationUser> userManager,
+    RoleManager<ApplicationRole> roleManager, // 🔥 เปลี่ยนเป็น ApplicationRole ด้วย
+    IFilterService filterService, 
+    ISortService sortService, 
+    IPaginationService paginationService,
+    IConfiguration configuration) : IAuthService
 {
-    private readonly ApplicationDbContext _context;
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly RoleManager<ApplicationRole> _roleManager; // 🔥 เปลี่ยนเป็น ApplicationRole ด้วย
-    private readonly IFilterService _filterService;
-    private readonly ISortService _sortService;
-    private readonly IPaginationService _paginationService;
-    private readonly IConfiguration _configuration;
-
-    public AuthService(
-        ApplicationDbContext context, 
-        UserManager<ApplicationUser> userManager,
-        RoleManager<ApplicationRole> roleManager, // 🔥 เปลี่ยนเป็น ApplicationRole
-        IFilterService filterService, 
-        ISortService sortService, 
-        IPaginationService paginationService,
-        IConfiguration configuration)
-    {
-        _context = context;
-        _userManager = userManager;
-        _roleManager = roleManager;
-        _filterService = filterService;
-        _sortService = sortService;
-        _paginationService = paginationService;
-        _configuration = configuration;
-    }
 
     public async Task<Response<TokenResponse>> LoginAsync(LoginRequest request)
     {
-        var account = await _userManager.FindByNameAsync(request.Username);
+        var account = await userManager.FindByNameAsync(request.Username);
 
         if (account == null)
         {
             return new Response<TokenResponse> { IsSuccess = false, Message = $"Debug Error: บัญชี '{request.Username}' ไม่มีอยู่จริง" };
         }
 
-        bool isPasswordValid = await _userManager.CheckPasswordAsync(account, request.Password);
+        bool isPasswordValid = await userManager.CheckPasswordAsync(account, request.Password);
         if (!isPasswordValid)
         {
             return new Response<TokenResponse> { IsSuccess = false, Message = "Invalid password. รหัสผ่านไม่ถูกต้อง" };
         }
 
-        var userRoles = await _userManager.GetRolesAsync(account);
+        var userRoles = await userManager.GetRolesAsync(account);
         var primaryRole = userRoles.FirstOrDefault() ?? "User";
 
         var (accessToken, expiresAt) = GenerateAccessToken(account, userRoles.ToList());
         var refreshToken = GenerateRefreshToken();
 
         // Update refresh token in DB
-        var refreshTokenExpiryDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        var refreshTokenExpiryDays = configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
         account.RefreshToken = refreshToken;
         account.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(refreshTokenExpiryDays);
-        await _userManager.UpdateAsync(account);
+        await userManager.UpdateAsync(account);
 
         var result = new TokenResponse
         {
@@ -96,23 +78,23 @@ public class AuthService : IAuthService
             return new Response<TokenResponse> { IsSuccess = false, Message = "Invalid access token or refresh token" };
         }
 
-        var account = await _userManager.FindByNameAsync(username);
+        var account = await userManager.FindByNameAsync(username);
         if (account == null || account.RefreshToken != request.RefreshToken || account.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             return new Response<TokenResponse> { IsSuccess = false, Message = "Invalid access token or refresh token" };
         }
 
-        var userRoles = await _userManager.GetRolesAsync(account);
+        var userRoles = await userManager.GetRolesAsync(account);
         var primaryRole = userRoles.FirstOrDefault() ?? "User";
 
         var (newAccessToken, expiresAt) = GenerateAccessToken(account, userRoles.ToList());
         var newRefreshToken = GenerateRefreshToken();
 
         // Rotate refresh token
-        var refreshTokenExpiryDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        var refreshTokenExpiryDays = configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
         account.RefreshToken = newRefreshToken;
         account.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(refreshTokenExpiryDays);
-        await _userManager.UpdateAsync(account);
+        await userManager.UpdateAsync(account);
 
         var result = new TokenResponse
         {
@@ -129,7 +111,7 @@ public class AuthService : IAuthService
 
     public async Task<Response> RevokeTokenAsync(string username)
     {
-        var account = await _userManager.FindByNameAsync(username);
+        var account = await userManager.FindByNameAsync(username);
         if (account == null)
         {
             return new Response { IsSuccess = false, Message = "User not found" };
@@ -137,14 +119,14 @@ public class AuthService : IAuthService
 
         account.RefreshToken = null;
         account.RefreshTokenExpiryTime = null;
-        await _userManager.UpdateAsync(account);
+        await userManager.UpdateAsync(account);
 
         return new Response { IsSuccess = true, Message = "Token revoked successfully" };
     }
 
     public async Task<Response> RegisterAsync(RegisterRequest request)
     {
-        var existingUser = await _userManager.FindByNameAsync(request.Username);
+        var existingUser = await userManager.FindByNameAsync(request.Username);
         if (existingUser != null) return new Response { IsSuccess = false, Message = "Username already exists." };
 
         var newAccount = new ApplicationUser
@@ -154,7 +136,7 @@ public class AuthService : IAuthService
             EmployeeId = request.EmployeeId
         };
 
-        var result = await _userManager.CreateAsync(newAccount, request.Password);
+        var result = await userManager.CreateAsync(newAccount, request.Password);
 
         if (!result.Succeeded)
         {
@@ -167,20 +149,20 @@ public class AuthService : IAuthService
 
     public async Task<Response<bool>> CheckPasswordAsync(string username, string password)
     {
-        var account = await _userManager.FindByNameAsync(username);
+        var account = await userManager.FindByNameAsync(username);
         if (account == null) return new Response<bool> { IsSuccess = false, Message = "Username does not exist.", Data = false };
 
-        bool isPasswordValid = await _userManager.CheckPasswordAsync(account, password);
+        bool isPasswordValid = await userManager.CheckPasswordAsync(account, password);
         return new Response<bool> { IsSuccess = isPasswordValid, Message = isPasswordValid ? "Password matches." : "Password mismatch.", Data = isPasswordValid };
     }
 
     public async Task<Response> ResetPasswordAsync(string username, string newPassword)
     {
-        var account = await _userManager.FindByNameAsync(username);
+        var account = await userManager.FindByNameAsync(username);
         if (account == null) return new Response { IsSuccess = false, Message = "Username does not exist." };
 
-        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(account);
-        var result = await _userManager.ResetPasswordAsync(account, resetToken, newPassword);
+        var resetToken = await userManager.GeneratePasswordResetTokenAsync(account);
+        var result = await userManager.ResetPasswordAsync(account, resetToken, newPassword);
 
         if (!result.Succeeded) return new Response { IsSuccess = false, Message = "Failed to reset password." };
 
@@ -191,7 +173,7 @@ public class AuthService : IAuthService
     {
         try
         {
-            var query = _context.Users.OfType<ApplicationUser>()
+            var query = context.Users.OfType<ApplicationUser>()
                 .Include(u => u.Employee)
                 .AsNoTracking()
                 .AsQueryable();
@@ -202,8 +184,8 @@ public class AuthService : IAuthService
                 query = query.Where(u => u.UserName.ToLower().Contains(search) || u.Email.ToLower().Contains(search));
             }
 
-            query = _filterService.ApplyStringFilter(query, e => e.UserName, request.Username);
-            query = _filterService.ApplyStringFilter(query, e => e.Email, request.Email);
+            query = filterService.ApplyStringFilter(query, e => e.UserName, request.Username);
+            query = filterService.ApplyStringFilter(query, e => e.Email, request.Email);
 
             if (!string.IsNullOrWhiteSpace(request.SortBy))
             {
@@ -217,7 +199,7 @@ public class AuthService : IAuthService
             }
             else query = query.OrderByDescending(u => u.Id);
 
-            var pagedEntities = await _paginationService.PaginateAsync(query, request.PageNumber, request.PageSize);
+            var pagedEntities = await paginationService.PaginateAsync(query, request.PageNumber, request.PageSize);
             
             var items = await query
                 .Skip((request.PageNumber - 1) * request.PageSize)
@@ -249,12 +231,12 @@ public class AuthService : IAuthService
         try
         {
             // 🔥 [แก้ Error ที่ 2] FindByIdAsync บังคับรับ String แม้คีย์จะเป็น int
-            var user = await _userManager.FindByIdAsync(id.ToString()); 
+            var user = await userManager.FindByIdAsync(id.ToString()); 
             if (user == null) return new Response { IsSuccess = false, Message = "User account not found." };
 
             if (user.UserName.ToLower() != request.Username.ToLower())
             {
-                var existingUser = await _userManager.FindByNameAsync(request.Username);
+                var existingUser = await userManager.FindByNameAsync(request.Username);
                 if (existingUser != null && existingUser.Id != id)
                 {
                     return new Response { IsSuccess = false, Message = "Username already exists." };
@@ -265,7 +247,7 @@ public class AuthService : IAuthService
             user.Email = request.Email;
             user.EmployeeId = request.EmployeeId;
 
-            var result = await _userManager.UpdateAsync(user);
+            var result = await userManager.UpdateAsync(user);
 
             if (!result.Succeeded) return new Response { IsSuccess = false, Message = "Update failed." };
 
@@ -280,7 +262,7 @@ public class AuthService : IAuthService
     private (string Token, DateTime ExpiresAt) GenerateAccessToken(ApplicationUser account, List<string> userRoles)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var secretKey = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyEnterpriseTierVector99999YourCompanySecretKey";
+        var secretKey = configuration["JwtSettings:Secret"] ?? "SuperSecretKeyEnterpriseTierVector99999YourCompanySecretKey";
         var key = Encoding.ASCII.GetBytes(secretKey);
 
         var claims = new List<Claim>
@@ -296,15 +278,15 @@ public class AuthService : IAuthService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        var expirationMinutes = _configuration.GetValue<int>("JwtSettings:AccessTokenExpirationMinutes", 15);
+        var expirationMinutes = configuration.GetValue<int>("JwtSettings:AccessTokenExpirationMinutes", 15);
         var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
             Expires = expiresAt,
-            Issuer = _configuration["JwtSettings:Issuer"] ?? "MyProjectBackend",
-            Audience = _configuration["JwtSettings:Audience"] ?? "MyProjectFrontend",
+            Issuer = configuration["JwtSettings:Issuer"] ?? "MyProjectBackend",
+            Audience = configuration["JwtSettings:Audience"] ?? "MyProjectFrontend",
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
         };
 
@@ -322,14 +304,14 @@ public class AuthService : IAuthService
 
     private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
     {
-        var secretKey = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyEnterpriseTierVector99999YourCompanySecretKey";
+        var secretKey = configuration["JwtSettings:Secret"] ?? "SuperSecretKeyEnterpriseTierVector99999YourCompanySecretKey";
         var tokenValidationParameters = new TokenValidationParameters
         {
             ValidateAudience = true, // We must validate it according to appsettings
             ValidateIssuer = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = _configuration["JwtSettings:Issuer"] ?? "MyProjectBackend",
-            ValidAudience = _configuration["JwtSettings:Audience"] ?? "MyProjectFrontend",
+            ValidIssuer = configuration["JwtSettings:Issuer"] ?? "MyProjectBackend",
+            ValidAudience = configuration["JwtSettings:Audience"] ?? "MyProjectFrontend",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secretKey)),
             ValidateLifetime = false // Here we are saying that we don't care about the token's expiration date
         };
